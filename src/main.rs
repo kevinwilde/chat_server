@@ -1,3 +1,8 @@
+// Christopher Chen
+// Alex Cohen
+// Thornton Uhl
+// Kevin Wilde
+
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
