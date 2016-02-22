@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::channel;
 use std::thread;
@@ -28,10 +28,11 @@ fn main() {
 fn create_client(stream: TcpStream) {
     println!("New client");
     let mut stream = stream;
-    stream.write(&"Welcome to Smazy".to_string().into_bytes()).unwrap();
-    stream.write(&"Please enter a username".to_string().into_bytes()).unwrap();
-    stream.flush();
+    stream.write(&"Welcome to Smazy\n".to_string().into_bytes()).unwrap();
+    stream.write(&"Please enter a username:\n".to_string().into_bytes()).unwrap();
+    stream.flush().unwrap();
+    let mut reader = BufReader::new(stream);
     let mut username = "".to_string();
-    stream.read_to_string(&mut username).unwrap();
+    reader.read_line(&mut username).unwrap();
     println!("Username is {}", username);
 }
