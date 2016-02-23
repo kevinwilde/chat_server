@@ -29,9 +29,16 @@ fn main() {
                 msg.date(), msg.from(), msg.to(), msg.content());
 
             // TODO: lookup recipient in hashmap and forward msg.content
-            let guard = usernames_clone.lock().unwrap();
-            let sender : &Sender<Message> = guard.get(msg.to()).unwrap();
-            sender.send(msg).unwrap();
+            {
+                let guard = usernames_clone.lock().unwrap();
+                if let Some(sender) = guard.get(msg.to()) {
+                    let sender: &Sender<Message> = sender;
+                    sender.send(msg).unwrap();
+                    println!("Here");
+                } else {
+                    println!("{} does not exist in hashmap", msg.to());
+                }
+            }
         }
     });
 
@@ -66,11 +73,15 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
     let mut username = "".to_string();
     match reader.read_line(&mut username) {
         Ok(n) => {
+            let username = username.trim().to_string();
             let (sender_to_client, receiver_from_router) = channel();
-            let mut guard = usernames.lock().unwrap();
-            if n > 0 && !guard.contains_key(&username) {
-                guard.insert(username.to_string(), sender_to_client);
-                println!("Username is {}", username.to_string());
+            {
+                let mut guard = usernames.lock().unwrap();
+                if n > 0 && !guard.contains_key(&username) {
+                    println!("Inserting {}", &username);
+                    guard.insert(username.to_string(), sender_to_client);
+                    println!("Username is {}", username.to_string());
+                }
             }
 
             // TODO: show list of available to users and choose who to chat with
@@ -78,7 +89,7 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
 
             // Send messages
             let username_clone = username.clone();
-            thread::spawn(move|| { 
+            thread::spawn(move|| {
                 let mut lines = BufReader::new(reader).lines(); 
                 while let Some(Ok(line)) = lines.next() {
                     println!("{}",line);
@@ -89,13 +100,16 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
 
 
             // Receive Messages
-            loop {                
+            let username_clone = username.clone();
+            thread::spawn(move|| {
+            loop {
                 match receiver_from_router.try_recv() {
-                    Ok(msg) => println!("User {} received message: {}", &username, msg.content()),
+                    Ok(msg) => println!("User {} received message: {}", &username_clone, msg.content()),
                     Err(TryRecvError::Empty) => continue,
                     Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
                 }
             }
+            });
         },
         Err(e) => println!("{}", e)
     }
