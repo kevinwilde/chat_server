@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Sender, TryRecvError};
+use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 
 use message::Message;
@@ -81,42 +81,46 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
                     println!("Username is {}", username.to_string());
                 }
             }
-
-            // TODO: show list of available to users and choose who to chat with
-            // Include bool in hashmap for available? 
-            // Or Option<String> that says who you are chatting with (None if not chatting)
-
-            // Send messages
-            {
-                let username = username.clone();
-                thread::spawn(move|| {
-                    let mut lines = reader.lines(); 
-                    while let Some(Ok(line)) = lines.next() {
-                        println!("{}",line);
-                        let msg = Message::new("Date".to_string(), username.to_string(), "b".to_string(), line.to_string());
-                        sender_to_router.send(msg).unwrap();
-                    }                
-                });
-            }
-
-
-            // Receive Messages
-            {
-                let username = username.clone();
-                thread::spawn(move|| {
-                    loop {
-                        match receiver_from_router.try_recv() {
-                            Ok(msg) => {
-                                println!("User {} received message: {}", &username, msg.content());
-                                //stream.write(&msg.content().into_bytes());
-                            }
-                            Err(TryRecvError::Empty) => continue,
-                            Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
-                        }
-                    }
-                });
-            }
+            chat(reader.into_inner(), username, sender_to_router, receiver_from_router);
         },
         Err(e) => println!("{}", e)
+    }
+}
+
+fn chat(stream: TcpStream, username: String, sender_to_router: Sender<Message>, receiver_from_router: Receiver<Message>) {
+    // TODO: show list of available to users and choose who to chat with
+    // Include bool in hashmap for available? 
+    // Or Option<String> that says who you are chatting with (None if not chatting)
+
+    // Send messages
+    {
+        let username = username.clone();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        thread::spawn(move|| {
+            let mut lines = reader.lines(); 
+            while let Some(Ok(line)) = lines.next() {
+                println!("{}",line);
+                let msg = Message::new("Date".to_string(), username.to_string(), "b".to_string(), line.to_string());
+                sender_to_router.send(msg).unwrap();
+            }                
+        });
+    }
+
+    // Receive Messages
+    {
+        let username = username.clone();
+        let mut stream = stream;
+        thread::spawn(move|| {
+            loop {
+                match receiver_from_router.try_recv() {
+                    Ok(msg) => {
+                        println!("User {} received message: {}", &username, msg.content());
+                        stream.write(&msg.content().to_string().into_bytes()).unwrap();
+                    }
+                    Err(TryRecvError::Empty) => continue,
+                    Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
+                }
+            }
+        });
     }
 }
