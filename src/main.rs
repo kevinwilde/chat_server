@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc::{channel, Sender, TryRecvError};
 use std::thread;
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
                 let sender_to_router = sender_to_router.clone();
                 thread::spawn(move|| {
                     // connection succeeded
-                    create_client(stream, &usernames, sender_to_router);
+                    handle_client(stream, &usernames, sender_to_router);
                 });
             }
             Err(e) => {
@@ -44,7 +44,7 @@ fn main() {
     drop(listener);
 }
 
-fn create_client(stream: TcpStream, usernames: &Arc<Mutex<HashMap<String, Sender<String>>>>, sender_to_router: Sender<String>) {
+fn handle_client(stream: TcpStream, usernames: &Arc<Mutex<HashMap<String, Sender<String>>>>, sender_to_router: Sender<String>) {
     println!("New client");
     let mut stream = stream;
     stream.write(&"Welcome to Smazy\n".to_string().into_bytes()).unwrap();
@@ -63,8 +63,11 @@ fn create_client(stream: TcpStream, usernames: &Arc<Mutex<HashMap<String, Sender
 
             loop {
                 sender_to_router.send("Hi".to_string()).unwrap();
-                let message = receiver_from_router.recv().unwrap();
-                println!("User received {}", message);
+                match receiver_from_router.try_recv() {
+                    Ok(msg) => println!("User {} received message: {}", &username, msg),
+                    Err(TryRecvError::Empty) => continue,
+                    Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
+                }
                 println!("end of loop");
             }
         },
