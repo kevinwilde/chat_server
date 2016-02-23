@@ -27,9 +27,11 @@ fn main() {
             let msg: Message = receiver_from_clients.recv().unwrap();
             println!("Router received message date {}, from {}, to {}, content {}", 
                 msg.date(), msg.from(), msg.to(), msg.content());
-            let sender : &Sender<Message> = usernames_clone.lock().unwrap().get(msg.to()).unwrap();
-            sender.send(msg).unwrap();
+
             // TODO: lookup recipient in hashmap and forward msg.content
+            let guard = usernames_clone.lock().unwrap();
+            let sender : &Sender<Message> = guard.get(msg.to()).unwrap();
+            sender.send(msg).unwrap();
         }
     });
 
@@ -73,24 +75,21 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
 
             // TODO: show list of available to users and choose who to chat with
             // Include bool in hashmap for available?
+
+            // Send messages
             let username_clone = username.clone();
             thread::spawn(move|| { 
-
-
                 let mut lines = BufReader::new(reader).lines(); 
                 while let Some(Ok(line)) = lines.next() {
                     println!("{}",line);
                     let msg = Message::new("Date".to_string(), username_clone.to_string(), "b".to_string(), line.to_string());
                     sender_to_router.send(msg).unwrap();
-                }
-
-                
+                }                
             });
 
 
-
-            loop {
-                
+            // Receive Messages
+            loop {                
                 match receiver_from_router.try_recv() {
                     Ok(msg) => println!("User {} received message: {}", &username, msg.content()),
                     Err(TryRecvError::Empty) => continue,
