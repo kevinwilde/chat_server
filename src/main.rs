@@ -20,27 +20,25 @@ fn main() {
     let (sender_to_router, receiver_from_clients) = channel();
 
     //Router thread
-    let usernames_clone = usernames.clone();
-    thread::spawn(move|| {
-        loop {
-            // TODO: use recv or try_recv here?
-            let msg: Message = receiver_from_clients.recv().unwrap();
-            println!("Router received message date {}, from {}, to {}, content {}", 
-                msg.date(), msg.from(), msg.to(), msg.content());
+    {
+        let usernames = usernames.clone();
+        thread::spawn(move|| {
+            loop {
+                // TODO: use recv or try_recv here?
+                let msg: Message = receiver_from_clients.recv().unwrap();
+                println!("Router received message date {}, from {}, to {}, content {}", 
+                    msg.date(), msg.from(), msg.to(), msg.content());
 
-            // TODO: lookup recipient in hashmap and forward msg.content
-            {
-                let guard = usernames_clone.lock().unwrap();
+                let guard = usernames.lock().unwrap();
                 if let Some(sender) = guard.get(msg.to()) {
                     let sender: &Sender<Message> = sender;
                     sender.send(msg).unwrap();
-                    println!("Here");
                 } else {
                     println!("{} does not exist in hashmap", msg.to());
                 }
             }
-        }
-    });
+        });
+    }
 
     // accept connections and process them, spawning a new thread for each one
     for stream in listener.incoming() {
@@ -85,31 +83,39 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
             }
 
             // TODO: show list of available to users and choose who to chat with
-            // Include bool in hashmap for available?
+            // Include bool in hashmap for available? 
+            // Or Option<String> that says who you are chatting with (None if not chatting)
 
             // Send messages
-            let username_clone = username.clone();
-            thread::spawn(move|| {
-                let mut lines = BufReader::new(reader).lines(); 
-                while let Some(Ok(line)) = lines.next() {
-                    println!("{}",line);
-                    let msg = Message::new("Date".to_string(), username_clone.to_string(), "b".to_string(), line.to_string());
-                    sender_to_router.send(msg).unwrap();
-                }                
-            });
+            {
+                let username = username.clone();
+                thread::spawn(move|| {
+                    let mut lines = reader.lines(); 
+                    while let Some(Ok(line)) = lines.next() {
+                        println!("{}",line);
+                        let msg = Message::new("Date".to_string(), username.to_string(), "b".to_string(), line.to_string());
+                        sender_to_router.send(msg).unwrap();
+                    }                
+                });
+            }
 
 
             // Receive Messages
-            let username_clone = username.clone();
-            thread::spawn(move|| {
-            loop {
-                match receiver_from_router.try_recv() {
-                    Ok(msg) => println!("User {} received message: {}", &username_clone, msg.content()),
-                    Err(TryRecvError::Empty) => continue,
-                    Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
-                }
+            {
+                let username = username.clone();
+                thread::spawn(move|| {
+                    loop {
+                        match receiver_from_router.try_recv() {
+                            Ok(msg) => {
+                                println!("User {} received message: {}", &username, msg.content());
+                                //stream.write(&msg.content().into_bytes());
+                            }
+                            Err(TryRecvError::Empty) => continue,
+                            Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
+                        }
+                    }
+                });
             }
-            });
         },
         Err(e) => println!("{}", e)
     }
