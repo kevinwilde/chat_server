@@ -25,7 +25,7 @@ fn main() {
             // TODO: use recv or try_recv here?
             let msg: Message = receiver_from_clients.recv().unwrap();
             println!("Router received message date {}, from {}, to {}, content {}", 
-                msg.get_date(), msg.get_from(), msg.get_to(), msg.get_content());
+                msg.date(), msg.from(), msg.to(), msg.content());
             // TODO: lookup recipient in hashmap and forward msg.content
         }
     });
@@ -75,7 +75,7 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
                 let msg = Message::new("Date".to_string(), username.to_string(), "b".to_string(), "Hi".to_string());
                 sender_to_router.send(msg).unwrap();
                 match receiver_from_router.try_recv() {
-                    Ok(msg) => println!("User {} received message: {}", &username, msg.get_content()),
+                    Ok(msg) => println!("User {} received message: {}", &username, msg.content()),
                     Err(TryRecvError::Empty) => continue,
                     Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
                 }

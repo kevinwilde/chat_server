@@ -15,19 +15,19 @@ impl Message {
         }
     }
 
-    pub fn get_date(&self) -> String {
-        (*self.date).to_string()
+    pub fn date(&self) -> &String {
+        &self.date
     }
 
-    pub fn get_from(&self) -> String {
-        (*self.from).to_string()
+    pub fn from(&self) -> &String {
+        &self.from
     }
 
-    pub fn get_to(&self) -> String {
-        (*self.to).to_string()
+    pub fn to(&self) -> &String {
+        &self.to
     }
 
-    pub fn get_content(&self) -> String {
-        (*self.content).to_string()
+    pub fn content(&self) -> &String {
+        &self.content
     }
 }
