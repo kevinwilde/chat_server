@@ -68,6 +68,9 @@ fn handle_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames
                 println!("Username is {}", username.to_string());
             }
 
+            // TODO: show list of available to users and choose who to chat with
+            // Include bool in hashmap for available?
+
             loop {
                 let msg = message::Message{
                     date: "Date".to_string(), 
