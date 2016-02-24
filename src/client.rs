@@ -5,15 +5,16 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 
+use clientinfo::ClientInfo;
 use message::Message;
 
-pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames: &Arc<Mutex<HashMap<String, Sender<Message>>>>) {
+pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, usernames: &Arc<Mutex<HashMap<String, ClientInfo>>>) {
     println!("New client");
     let mut stream = stream;
     stream.write(&"Welcome to Smazy\n".to_string().into_bytes()).unwrap();
     stream.write(&"Please enter a username:\n".to_string().into_bytes()).unwrap();
     stream.flush().unwrap();
-    let mut reader = BufReader::new(stream);
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut username = "".to_string();
     match reader.read_line(&mut username) {
         Ok(n) => {
@@ -23,21 +24,65 @@ pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, usern
                 let mut guard = usernames.lock().unwrap();
                 if n > 0 && !guard.contains_key(&username) {
                     println!("Inserting {}", &username);
-                    guard.insert(username.to_string(), sender_to_client);
+                    let client_info = ClientInfo{partner: None, sender_to_client: sender_to_client};
+                    guard.insert(username.to_string(), client_info);
                     println!("Username is {}", username.to_string());
                 }
             }
-            chat(reader.into_inner(), username, sender_to_router, receiver_from_router);
+            let partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), usernames);
+            chat(stream, username, partner, sender_to_router, receiver_from_router);
         },
         Err(e) => println!("{}", e)
     }
 }
 
-fn chat(stream: TcpStream, username: String, sender_to_router: Sender<Message>, receiver_from_router: Receiver<Message>) {
-    // TODO: show list of available to users and choose who to chat with
-    // Include bool in hashmap for available? 
-    // Or Option<String> that says who you are chatting with (None if not chatting)
+fn choose_chat_partner(stream: TcpStream, username: String, usernames: &Arc<Mutex<HashMap<String, ClientInfo>>>) -> String {
+    let mut stream = stream;
+    stream.write(&"Here are the users available to chat:\n".to_string().into_bytes()).unwrap();
+    {
+        let guard = usernames.lock().unwrap();
+        for (name, client_info) in guard.iter() {
+            if name.as_str() != username.as_str() && client_info.partner == None {
+                stream.write(&name.to_string().into_bytes()).unwrap();
+            }
+        }
+    }
+    stream.write(&"Select who you want to chat with:\n".to_string().into_bytes()).unwrap();
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
+    let mut partner = "".to_string();
+    match reader.read_line(&mut partner) {
+        Ok(_) => {
+            let partner = partner.trim().to_string();
+            let success: bool;
+            {
+                let mut guard = usernames.lock().unwrap();
+                match guard.get_mut(&partner) {
+                    Some(clientinfo) => {
+                        if partner.as_str() != username.as_str() && clientinfo.partner == None {
+                            success = true;
+                            clientinfo.partner = Some(username.to_string());
+                        } else {
+                            success = false;
+                        }
+                    },
+                    None => success = false
+                }
+            }
 
+            if success {
+                println!("Good");
+                let mut guard = usernames.lock().unwrap();
+                guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
+            } else {
+                return choose_chat_partner(stream, username, usernames);
+            }
+        }
+        Err(e) => println!("{}", e)
+    }
+    partner.trim().to_string()
+}
+
+fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: Sender<Message>, receiver_from_router: Receiver<Message>) {
     // Send messages
     {
         let username = username.clone();
@@ -46,7 +91,7 @@ fn chat(stream: TcpStream, username: String, sender_to_router: Sender<Message>, 
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
                 println!("{}",line);
-                let msg = Message::new("Date".to_string(), username.to_string(), "b".to_string(), line.to_string());
+                let msg = Message::new("Date".to_string(), username.to_string(), partner.to_string(), line.to_string());
                 sender_to_router.send(msg).unwrap();
             }                
         });

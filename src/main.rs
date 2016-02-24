@@ -6,17 +6,19 @@
 use std::collections::HashMap;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::channel;
 use std::thread;
 
+use clientinfo::ClientInfo;
 use message::Message;
 
 mod client;
+mod clientinfo;
 mod message;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-    let usernames = Arc::new(Mutex::new(HashMap::new()));
+    let usernames: Arc<Mutex<HashMap<String, ClientInfo>>> = Arc::new(Mutex::new(HashMap::new()));
     let (sender_to_router, receiver_from_clients) = channel();
 
     //Router thread
@@ -30,9 +32,12 @@ fn main() {
                     msg.date(), msg.from(), msg.to(), msg.content());
 
                 let guard = usernames.lock().unwrap();
-                if let Some(sender) = guard.get(msg.to()) {
-                    let sender: &Sender<Message> = sender;
-                    sender.send(msg).unwrap();
+
+                if let Some(client_info) = guard.get(msg.to()) {
+                    if let Some(ref p) = client_info.partner {
+                        assert_eq!(&p[..], &msg.from()[..]);
+                        client_info.sender_to_client.send(msg).unwrap();
+                    }
                 } else {
                     println!("{} does not exist in hashmap", msg.to());
                 }
