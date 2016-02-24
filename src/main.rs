@@ -3,27 +3,26 @@
 // Thornton Uhl
 // Kevin Wilde
 
-use std::collections::HashMap;
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 use std::thread;
 
-use clientinfo::ClientInfo;
+use chatmap::ChatMap;
 use message::Message;
 
 mod client;
-mod clientinfo;
+mod chatmap;
 mod message;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-    let usernames: Arc<Mutex<HashMap<String, ClientInfo>>> = Arc::new(Mutex::new(HashMap::new()));
+    let chat_map: Arc<Mutex<ChatMap>> = Arc::new(Mutex::new(ChatMap::new()));
     let (sender_to_router, receiver_from_clients) = channel();
 
     //Router thread
     {
-        let usernames = usernames.clone();
+        let chat_map = chat_map.clone();
         thread::spawn(move|| {
             loop {
                 // TODO: use recv or try_recv here?
@@ -31,7 +30,7 @@ fn main() {
                 println!("Router received message date {}, from {}, to {}, content {}", 
                     msg.date(), msg.from(), msg.to(), msg.content());
 
-                let guard = usernames.lock().unwrap();
+                let guard = chat_map.lock().unwrap();
 
                 if let Some(client_info) = guard.get(msg.to()) {
                     if let Some(ref p) = client_info.partner {
@@ -49,11 +48,11 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                let usernames = usernames.clone();
+                let chat_map = chat_map.clone();
                 let sender_to_router = sender_to_router.clone();
                 thread::spawn(move|| {
                     // connection succeeded
-                    client::create_client(stream, sender_to_router, &usernames);
+                    client::create_client(stream, sender_to_router, &chat_map);
                 });
             }
             Err(e) => {
