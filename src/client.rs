@@ -108,23 +108,20 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
                 println!("{}",line);
                 let msg = Message::new("Date".to_string(), username.to_string(), partner.to_string(), line.to_string());
                 sender_to_router.send(msg).unwrap();
-            }                
+            }
         });
     }
 
     // Receive Messages
     {
         let username = username.clone();
-        let mut stream = stream;
         thread::spawn(move|| {
             loop {
+                let stream = stream.try_clone().unwrap();
                 match receiver_from_router.try_recv() {
                     Ok(msg) => {
                         println!("User {} received message: {}", &username, msg.content());
-                        stream.write(&msg.from().to_string().into_bytes()).unwrap();
-                        stream.write(&": ".to_string().into_bytes()).unwrap();
-                        stream.write(&msg.content().to_string().into_bytes()).unwrap();
-                        stream.write(&"\n".to_string().into_bytes()).unwrap();
+                        deliver_message(stream, msg);
                     }
                     Err(TryRecvError::Empty) => continue,
                     Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
@@ -132,4 +129,10 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
             }
         });
     }
+}
+
+fn deliver_message(stream: TcpStream, msg: Message) {
+    let mut stream = stream;
+    let output = msg.from().to_string() + ": " + msg.content().as_str() + "\n";
+    stream.write(&output.into_bytes()).unwrap();
 }
