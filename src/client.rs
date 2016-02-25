@@ -36,6 +36,7 @@ pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_
 
 fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex<ChatMap>>) -> String {
     let mut stream = stream;
+    
     stream.write(&"Here are the users available to chat:\n".to_string().into_bytes()).unwrap();
     {
         let guard = chat_map.lock().unwrap();
@@ -46,41 +47,52 @@ fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex
             }
         }
     }
+    
     stream.write(&"Select who you want to chat with:\n".to_string().into_bytes()).unwrap();
+    
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut partner = "".to_string();
+    
     match reader.read_line(&mut partner) {
         Ok(_) => {
-            let partner = partner.trim().to_string();
-            let success: bool;
-            {
-                let mut guard = chat_map.lock().unwrap();
-                match guard.get_mut(&partner) {
-                    Some(clientinfo) => {
-                        if partner.as_str() != username.as_str() && clientinfo.partner == None {
-                            success = true;
-                            clientinfo.partner = Some(username.to_string());
-                        } else {
-                            success = false;
-                        }
-                    },
-                    None => success = false
-                }
-            }
+            partner = partner.trim().to_string();
 
-            if success {
-                // TODO: Changing yourself to be chatting means that your partner can't choose
-                //       to chat with you, since it sees you already have a partner
-                //       Need to notify partner when someone wants to chat with them
-                //let mut guard = chat_map.lock().unwrap();
-                //guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
-            } else {
+            if !try_select_partner(chat_map, username.to_string(), partner.to_string()) {
                 return choose_chat_partner(stream, username, chat_map);
-            }
+            }            
         }
         Err(e) => println!("{}", e)
     }
-    partner.trim().to_string()
+    
+    partner
+}
+
+fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, username: String, partner: String) -> bool {
+    let success: bool;
+    {
+        let mut guard = chat_map.lock().unwrap();
+        
+        match guard.get_mut(&partner) {
+            Some(clientinfo) => {
+                if partner.as_str() != username.as_str() 
+                    && (clientinfo.partner == None 
+                        || clientinfo.partner == Some(username.to_string())) {
+                    clientinfo.partner = Some(username.to_string());
+                    success = true;
+                } else {
+                    success = false;
+                }
+            },
+            None => success = false
+        }
+    }
+
+    if success {
+        let mut guard = chat_map.lock().unwrap();
+        println!("Assigning partner {} to {}", partner, username);
+        guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
+    }
+    success
 }
 
 // TODO: Receiving a message while in the middle of typing a message
