@@ -121,7 +121,7 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
                 match receiver_from_router.try_recv() {
                     Ok(msg) => {
                         println!("User {} received message: {}", &username, msg.content());
-                        deliver_message(stream, msg);
+                        receive_message(stream, msg);
                     }
                     Err(TryRecvError::Empty) => continue,
                     Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
@@ -131,7 +131,7 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
     }
 }
 
-fn deliver_message(stream: TcpStream, msg: Message) {
+fn receive_message(stream: TcpStream, msg: Message) {
     let mut stream = stream;
     let output = msg.from().to_string() + ": " + msg.content().as_str() + "\n";
     stream.write(&output.into_bytes()).unwrap();
