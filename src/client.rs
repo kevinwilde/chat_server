@@ -38,10 +38,11 @@ fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex
     let mut stream = stream;
     
     stream.write(&"Here are the users available to chat:\n".to_string().into_bytes()).unwrap();
+    
     {
         let guard = chat_map.lock().unwrap();
         for (name, client_info) in guard.iter() {
-            if name.as_str() != username.as_str() && client_info.partner == None {
+            if &name[..] != &username[..] && client_info.partner == None {
                 stream.write(&name.to_string().into_bytes()).unwrap();
                 stream.write(&"\n".to_string().into_bytes()).unwrap();
             }
@@ -74,7 +75,7 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, username: String, partner:
         
         match guard.get_mut(&partner) {
             Some(clientinfo) => {
-                if partner.as_str() != username.as_str() 
+                if &partner[..] != &username[..]
                     && (clientinfo.partner == None 
                         || clientinfo.partner == Some(username.to_string())) {
                     clientinfo.partner = Some(username.to_string());
@@ -133,6 +134,6 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
 
 fn receive_message(stream: TcpStream, msg: Message) {
     let mut stream = stream;
-    let output = msg.from().to_string() + ": " + msg.content().as_str() + "\n";
+    let output = msg.from().to_string() + ": " + &msg.content()[..] + "\n";
     stream.write(&output.into_bytes()).unwrap();
 }
