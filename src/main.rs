@@ -25,7 +25,6 @@ fn main() {
         let chat_map = chat_map.clone();
         thread::spawn(move|| {
             loop {
-                // TODO: use recv or try_recv here?
                 let msg: Message = receiver_from_clients.recv().unwrap();
                 println!("Router received message date {}, from {}, to {}, content {}", 
                     msg.date(), msg.from(), msg.to(), msg.content());
@@ -44,14 +43,13 @@ fn main() {
         });
     }
 
-    // accept connections and process them, spawning a new thread for each one
+    // Clients
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 let chat_map = chat_map.clone();
                 let sender_to_router = sender_to_router.clone();
                 thread::spawn(move|| {
-                    // connection succeeded
                     client::create_client(stream, sender_to_router, &chat_map);
                 });
             }
@@ -61,7 +59,6 @@ fn main() {
         }
     }
 
-    // close the socket server
     drop(listener);
 }
 

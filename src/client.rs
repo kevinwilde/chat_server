@@ -22,10 +22,9 @@ pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_
             {
                 let mut guard = chat_map.lock().unwrap();
                 if n > 0 && !guard.contains_key(&username) {
-                    println!("Inserting {}", &username);
                     let client_info = ClientInfo{partner: None, sender_to_client: sender_to_client};
                     guard.insert(username.to_string(), client_info);
-                    println!("Username is {}", username.to_string());
+                    println!("New user: {}", username.to_string());
                 }
             }
             let partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), chat_map);
@@ -70,8 +69,11 @@ fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex
             }
 
             if success {
-                let mut guard = chat_map.lock().unwrap();
-                guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
+                // TODO: Changing yourself to be chatting means that your partner can't choose
+                //       to chat with you, since it sees you already have a partner
+                //       Need to notify partner when someone wants to chat with them
+                //let mut guard = chat_map.lock().unwrap();
+                //guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
             } else {
                 return choose_chat_partner(stream, username, chat_map);
             }
@@ -81,6 +83,8 @@ fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex
     partner.trim().to_string()
 }
 
+// TODO: Receiving a message while in the middle of typing a message
+//       inserts received message into middle of your message
 fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: Sender<Message>, receiver_from_router: Receiver<Message>) {
     // Send messages
     {
@@ -105,7 +109,10 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
                 match receiver_from_router.try_recv() {
                     Ok(msg) => {
                         println!("User {} received message: {}", &username, msg.content());
+                        stream.write(&msg.from().to_string().into_bytes()).unwrap();
+                        stream.write(&": ".to_string().into_bytes()).unwrap();
                         stream.write(&msg.content().to_string().into_bytes()).unwrap();
+                        stream.write(&"\n".to_string().into_bytes()).unwrap();
                     }
                     Err(TryRecvError::Empty) => continue,
                     Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
