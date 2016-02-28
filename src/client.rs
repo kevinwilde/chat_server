@@ -50,8 +50,9 @@ pub fn create_client(stream: TcpStream,
     }
 }
 
-fn choose_chat_partner(stream: TcpStream, username: String, 
-    chat_map: &Arc<Mutex<ChatMap>>) -> String {
+fn choose_chat_partner(stream: TcpStream, 
+                       username: String, 
+                       chat_map: &Arc<Mutex<ChatMap>>) -> String {
     
     let mut stream = stream;
     
