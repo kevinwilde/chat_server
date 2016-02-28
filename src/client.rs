@@ -7,6 +7,8 @@ use std::thread;
 use chatmap::{ChatMap, ClientInfo};
 use message::Message;
 
+extern crate time;
+
 pub fn create_client(stream: TcpStream, 
                      sender_to_router: Sender<Message>, 
                      chat_map: &Arc<Mutex<ChatMap>>) {
@@ -134,8 +136,10 @@ fn chat(stream: TcpStream,
             while let Some(Ok(line)) = lines.next() {
                 println!("{}",line);
                 
-                let msg = Message::new("Date".to_string(), username.to_string(), 
-                    partner.to_string(), line.to_string());
+                let msg = Message::new(time::now().asctime().to_string(), 
+                                       username.to_string(), 
+                                       partner.to_string(), 
+                                       line.to_string());
 
                 sender_to_router.send(msg).unwrap();
             }
@@ -157,7 +161,7 @@ fn chat(stream: TcpStream,
                     },
 
                     Err(TryRecvError::Empty) => continue,
-                    
+
                     Err(TryRecvError::Disconnected) => 
                         panic!("User {} disconnected from router", &username)
                 }
