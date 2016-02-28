@@ -7,7 +7,10 @@ use std::thread;
 use chatmap::{ChatMap, ClientInfo};
 use message::Message;
 
-pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_map: &Arc<Mutex<ChatMap>>) {
+pub fn create_client(stream: TcpStream, 
+                     sender_to_router: Sender<Message>, 
+                     chat_map: &Arc<Mutex<ChatMap>>) {
+
     println!("New client");
     let mut stream = stream;
     
@@ -26,13 +29,18 @@ pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_
             {
                 let mut guard = chat_map.lock().unwrap();
                 if n > 0 && !guard.contains_key(&username) {
-                    let client_info = ClientInfo{partner: None, sender_to_client: sender_to_client};
+                    let client_info = ClientInfo{
+                        partner: None, 
+                        sender_to_client: sender_to_client
+                    };
                     guard.insert(username.to_string(), client_info);
                     println!("New user: {}", username.to_string());
                 }
             }
 
-            let partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), chat_map);
+            let partner = choose_chat_partner(stream.try_clone().unwrap(), 
+                username.to_string(), chat_map);
+
             chat(stream, username, partner, sender_to_router, receiver_from_router);
         },
 
@@ -40,10 +48,13 @@ pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_
     }
 }
 
-fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex<ChatMap>>) -> String {
+fn choose_chat_partner(stream: TcpStream, username: String, 
+    chat_map: &Arc<Mutex<ChatMap>>) -> String {
+    
     let mut stream = stream;
     
-    stream.write(&"Here are the users available to chat:\n".to_string().into_bytes()).unwrap();
+    let show_available_msg = "Here are the users available to chat:\n".to_string();
+    stream.write(&show_available_msg.into_bytes()).unwrap();
     
     {
         let guard = chat_map.lock().unwrap();
@@ -55,7 +66,8 @@ fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex
         }
     }
     
-    stream.write(&"Select who you want to chat with:\n".to_string().into_bytes()).unwrap();
+    let select_msg = "Select who you want to chat with:\n".to_string();
+    stream.write(&select_msg.into_bytes()).unwrap();
     
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut partner = "".to_string();
@@ -74,7 +86,10 @@ fn choose_chat_partner(stream: TcpStream, username: String, chat_map: &Arc<Mutex
     partner
 }
 
-fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, username: String, partner: String) -> bool {
+fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, 
+                      username: String, 
+                      partner: String) -> bool {
+
     let success: bool;
     {
         let mut guard = chat_map.lock().unwrap();
@@ -104,7 +119,12 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, username: String, partner:
 
 // TODO: Receiving a message while in the middle of typing a message
 //       inserts received message into middle of your message
-fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: Sender<Message>, receiver_from_router: Receiver<Message>) {
+fn chat(stream: TcpStream, 
+        username: String, 
+        partner: String, 
+        sender_to_router: Sender<Message>, 
+        receiver_from_router: Receiver<Message>) {
+    
     // Send messages
     {
         let username = username.clone();
@@ -113,7 +133,10 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
                 println!("{}",line);
-                let msg = Message::new("Date".to_string(), username.to_string(), partner.to_string(), line.to_string());
+                
+                let msg = Message::new("Date".to_string(), username.to_string(), 
+                    partner.to_string(), line.to_string());
+
                 sender_to_router.send(msg).unwrap();
             }
         });
@@ -127,11 +150,16 @@ fn chat(stream: TcpStream, username: String, partner: String, sender_to_router: 
                 let stream = stream.try_clone().unwrap();
                 match receiver_from_router.try_recv() {
                     Ok(msg) => {
-                        println!("User {} received message: {}", &username, msg.content());
+                        println!("User {} received message: {}", 
+                            &username, msg.content());
+
                         receive_message(stream, msg);
-                    }
+                    },
+
                     Err(TryRecvError::Empty) => continue,
-                    Err(TryRecvError::Disconnected) => panic!("User {} disconnected from router", &username)
+                    
+                    Err(TryRecvError::Disconnected) => 
+                        panic!("User {} disconnected from router", &username)
                 }
             }
         });
