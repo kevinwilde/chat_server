@@ -186,7 +186,38 @@ mod client_tests {
     use super::try_select_partner;
 
     #[test]
-    fn try_select_partner_test_1() {
+    fn try_select_partner_test_success_1() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
+    }
+
+    #[test]
+    fn try_select_partner_test_success_2() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
+
+        // Success: c and d become partners
+        assert!(try_select_partner(&cm, "c".to_string(), "d".to_string()));
+    }
+
+    #[test]
+    fn try_select_partner_test_succes_3() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
+
+        // Success: b can choose a when they are already partners
+        //   (This allows someone to confirm a chat request)
+        assert!(try_select_partner(&cm, "b".to_string(), "a".to_string()));
+    }
+
+    #[test]
+    fn try_select_partner_test_fail_1() {
         let cm = Arc::new(Mutex::new(fixture()));
 
         // Success: a and b become partners
@@ -194,13 +225,25 @@ mod client_tests {
 
         // Fail: b already has a partner
         assert!(!try_select_partner(&cm, "c".to_string(), "b".to_string()));
+    }
+
+    #[test]
+    fn try_select_partner_test_fail_2() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
 
         // Fail: Can't choose self as partner
         assert!(!try_select_partner(&cm, "c".to_string(), "c".to_string()));
+    }
 
-        // Success: b can choose a when they are already partners
-        //   (This allows someone to confirm a chat request)
-        assert!(try_select_partner(&cm, "b".to_string(), "a".to_string()));
+    #[test]
+    fn try_select_partner_test_fail_3() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
 
         // Success: c and d become partners
         assert!(try_select_partner(&cm, "c".to_string(), "d".to_string()));
