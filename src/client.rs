@@ -10,15 +10,19 @@ use message::Message;
 pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_map: &Arc<Mutex<ChatMap>>) {
     println!("New client");
     let mut stream = stream;
+    
     stream.write(&"Welcome to Smazy\n".to_string().into_bytes()).unwrap();
     stream.write(&"Please enter a username:\n".to_string().into_bytes()).unwrap();
     stream.flush().unwrap();
+    
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut username = "".to_string();
+    
     match reader.read_line(&mut username) {
         Ok(n) => {
             let username = username.trim().to_string();
             let (sender_to_client, receiver_from_router) = channel();
+            
             {
                 let mut guard = chat_map.lock().unwrap();
                 if n > 0 && !guard.contains_key(&username) {
@@ -27,9 +31,11 @@ pub fn create_client(stream: TcpStream, sender_to_router: Sender<Message>, chat_
                     println!("New user: {}", username.to_string());
                 }
             }
+
             let partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), chat_map);
             chat(stream, username, partner, sender_to_router, receiver_from_router);
         },
+
         Err(e) => println!("{}", e)
     }
 }
@@ -136,4 +142,71 @@ fn receive_message(stream: TcpStream, msg: Message) {
     let mut stream = stream;
     let output = msg.from().to_string() + ": " + &msg.content()[..] + "\n";
     stream.write(&output.into_bytes()).unwrap();
+}
+
+
+#[cfg(test)]
+mod client_tests {
+
+    use std::sync::{Arc, Mutex};
+    use std::sync::mpsc::channel;
+    use chatmap::{ChatMap, ClientInfo};
+    use super::try_select_partner;
+
+    #[test]
+    fn try_select_partner_test_1() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
+
+        // Fail: b already has a partner
+        assert!(!try_select_partner(&cm, "c".to_string(), "b".to_string()));
+
+        // Fail: Can't choose self as partner
+        assert!(!try_select_partner(&cm, "c".to_string(), "c".to_string()));
+
+        // Success: b can choose a when they are already partners
+        //   (This allows someone to confirm a chat request)
+        assert!(try_select_partner(&cm, "b".to_string(), "a".to_string()));
+
+        // Success: c and d become partners
+        assert!(try_select_partner(&cm, "c".to_string(), "d".to_string()));
+
+        // Fail: c already has a partner
+        assert!(!try_select_partner(&cm, "e".to_string(), "c".to_string()));
+
+        // Fail: d already has a partner
+        assert!(!try_select_partner(&cm, "e".to_string(), "d".to_string()));
+    }
+
+    fn fixture() -> ChatMap {
+        let mut cm = ChatMap::new();
+        let (sender_to_a, _) = channel();
+        cm.insert("a".to_string(), ClientInfo{
+            partner: None,
+            sender_to_client: sender_to_a
+        });
+        let (sender_to_b, _) = channel();
+        cm.insert("b".to_string(), ClientInfo{
+            partner: None,
+            sender_to_client: sender_to_b
+        });
+        let (sender_to_c, _) = channel();
+        cm.insert("c".to_string(), ClientInfo{
+            partner: None,
+            sender_to_client: sender_to_c
+        });
+        let (sender_to_d, _) = channel();
+        cm.insert("d".to_string(), ClientInfo{
+            partner: None,
+            sender_to_client: sender_to_d
+        });
+        let (sender_to_e, _) = channel();
+        cm.insert("e".to_string(), ClientInfo{
+            partner: None,
+            sender_to_client: sender_to_e
+        });
+        cm
+    }
 }
