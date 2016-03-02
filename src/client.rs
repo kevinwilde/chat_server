@@ -223,6 +223,7 @@ mod client_tests {
     use std::sync::{Arc, Mutex};
     use std::sync::mpsc::channel;
     use chatmap::{ChatMap, ClientInfo};
+    
     use super::try_select_partner;
 
     #[test]
@@ -293,6 +294,38 @@ mod client_tests {
 
         // Fail: d already has a partner
         assert!(!try_select_partner(&cm, "e".to_string(), "d".to_string()));
+    }
+
+    use super::quit_conversation;
+
+    #[test]
+    fn quit_conversation_test_1() {
+        let cm = Arc::new(Mutex::new(fixture()));
+        if try_select_partner(&cm, "a".to_string(), "b".to_string()) {
+            quit_conversation(&cm, "a".to_string(), "b".to_string());
+            let guard = cm.lock().unwrap();
+            assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);            
+            assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
+        } else {
+            assert!(false); // Don't pass if try_select_partner fails
+        }
+    }
+
+    #[test]
+    fn quit_conversation_test_2() {
+        let cm = Arc::new(Mutex::new(fixture()));
+        let ab = try_select_partner(&cm, "a".to_string(), "b".to_string());
+        let cd = try_select_partner(&cm, "c".to_string(), "d".to_string());
+        if ab && cd {
+            quit_conversation(&cm, "a".to_string(), "b".to_string());
+            let guard = cm.lock().unwrap();
+            assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);
+            assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
+            assert_eq!(Some("d".to_string()), guard.get(&"c".to_string()).unwrap().partner);
+            assert_eq!(Some("c".to_string()), guard.get(&"d".to_string()).unwrap().partner);
+        } else {
+            assert!(false); // Don't pass if try_select_partner fails
+        }
     }
 
     fn fixture() -> ChatMap {
