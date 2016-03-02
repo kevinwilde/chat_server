@@ -51,12 +51,9 @@ pub fn create_client(stream: TcpStream,
     }
 }
 
-fn choose_chat_partner(stream: TcpStream, 
-                       username: String, 
-                       chat_map: &Arc<Mutex<ChatMap>>) -> String {
-    
+fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username: String) {
     let mut stream = stream;
-    
+
     let show_available_msg = "Here are the users available to chat:\n".to_string();
     stream.write(&show_available_msg.into_bytes()).unwrap();
     
@@ -69,6 +66,15 @@ fn choose_chat_partner(stream: TcpStream,
             }
         }
     }
+}
+
+fn choose_chat_partner(stream: TcpStream, 
+                       username: String, 
+                       chat_map: &Arc<Mutex<ChatMap>>) -> String {
+    
+    display_available(stream.try_clone().unwrap(), &chat_map, username.to_string());
+    
+    let mut stream = stream;
     
     let select_msg = "Select who you want to chat with:\n".to_string();
     stream.write(&select_msg.into_bytes()).unwrap();
