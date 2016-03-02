@@ -5,6 +5,7 @@ use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 
 use chatmap::{ChatMap, ClientInfo};
+use command::Command;
 use message::Message;
 
 extern crate time;
@@ -43,7 +44,7 @@ pub fn create_client(stream: TcpStream,
             let partner = choose_chat_partner(stream.try_clone().unwrap(), 
                 username.to_string(), chat_map);
 
-            chat(stream, username, partner, sender_to_router, receiver_from_router);
+            chat(stream, username, partner, sender_to_router, receiver_from_router, chat_map);
         },
 
         Err(e) => println!("{}", e)
@@ -81,7 +82,7 @@ fn choose_chat_partner(stream: TcpStream,
 
             if !try_select_partner(chat_map, username.to_string(), partner.to_string()) {
                 return choose_chat_partner(stream, username, chat_map);
-            }            
+            }
         }
         Err(e) => println!("{}", e)
     }
@@ -120,29 +121,44 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
     success
 }
 
-// TODO: Receiving a message while in the middle of typing a message
-//       inserts received message into middle of your message
 fn chat(stream: TcpStream, 
         username: String, 
         partner: String, 
         sender_to_router: Sender<Message>, 
-        receiver_from_router: Receiver<Message>) {
+        receiver_from_router: Receiver<Message>,
+        chat_map: &Arc<Mutex<ChatMap>>) {
+
+    let mut partner = partner.to_string();
     
     // Send messages
     {
         let username = username.clone();
+        let chat_map = chat_map.clone();
+        let stream = stream.try_clone().unwrap();
         let reader = BufReader::new(stream.try_clone().unwrap());
         thread::spawn(move|| {
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
                 println!("{}",line);
-                
+
                 let msg = Message::new(time::now().asctime().to_string(), 
                                        username.to_string(), 
                                        partner.to_string(), 
                                        line.to_string());
 
-                sender_to_router.send(msg).unwrap();
+                if &line[0..1] == "/" {
+                    match msg.command() {
+                        Command::Quit => {
+                            println!("Quit command");
+                            quit_conversation(&chat_map, username.to_string(), partner.to_string());
+                            partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), &chat_map);
+                        }
+                        Command::Logoff => println!("Logoff command"),
+                        Command::Unrecognized => println!("Unrecognized command")
+                    }
+                } else {
+                    sender_to_router.send(msg).unwrap();
+                }
             }
         });
     }
@@ -175,6 +191,12 @@ fn receive_message(stream: TcpStream, msg: Message) {
     let mut stream = stream;
     let output = msg.from().to_string() + ": " + &msg.content()[..] + "\n";
     stream.write(&output.into_bytes()).unwrap();
+}
+
+fn quit_conversation(chat_map: &Arc<Mutex<ChatMap>>, username: String, partner: String) {
+    let mut guard = chat_map.lock().unwrap();
+    guard.get_mut(&username).unwrap().partner = None;
+    guard.get_mut(&partner).unwrap().partner = None;
 }
 
 

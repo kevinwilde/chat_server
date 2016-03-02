@@ -11,8 +11,9 @@ use std::thread;
 use chatmap::ChatMap;
 use message::Message;
 
-mod client;
 mod chatmap;
+mod client;
+mod command;
 mod message;
 
 fn main() {
