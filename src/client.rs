@@ -300,43 +300,32 @@ mod client_tests {
 
     #[test]
     fn quit_conversation_test_1() {
-        let cmap = Arc::new(Mutex::new(fixture()));
-        let ab = try_select_partner(&cmap, "a".to_string(), "b".to_string());
-        assert!(ab);
-        quit_conversation(&cmap, "a".to_string(), "b".to_string());
-        let guard = cmap.lock().unwrap();
-        assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);            
-        assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
+        let cm = Arc::new(Mutex::new(fixture()));
+        if try_select_partner(&cm, "a".to_string(), "b".to_string()) {
+            quit_conversation(&cm, "a".to_string(), "b".to_string());
+            let guard = cm.lock().unwrap();
+            assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);            
+            assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
+        } else {
+            assert!(false); // Don't pass if try_select_partner fails
+        }
     }
 
     #[test]
     fn quit_conversation_test_2() {
-        let cmap = Arc::new(Mutex::new(fixture()));
-        let ab = try_select_partner(&cmap, "a".to_string(), "b".to_string());
-        let cd = try_select_partner(&cmap, "c".to_string(), "d".to_string());
-        assert!(ab);
-        assert!(cd);
-        quit_conversation(&cmap, "a".to_string(), "b".to_string());
-        let guard = cmap.lock().unwrap();
-        assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);
-        assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
-        assert_eq!(Some("d".to_string()), guard.get(&"c".to_string()).unwrap().partner);
-        assert_eq!(Some("c".to_string()), guard.get(&"d".to_string()).unwrap().partner);
-    }
-
-    #[test]
-    fn quit_conversation_test_3() {
-        let cmap = Arc::new(Mutex::new(fixture()));
-        let ab = try_select_partner(&cmap, "a".to_string(), "b".to_string());
-        assert!(ab);
-        quit_conversation(&cmap, "a".to_string(), "b".to_string());
-        let ac = try_select_partner(&cmap, "a".to_string(), "c".to_string());
-        assert!(ac);
-        quit_conversation(&cmap, "b".to_string(), "a".to_string());
-        let guard = cmap.lock().unwrap();
-        assert_eq!(Some("c".to_string()), guard.get(&"a".to_string()).unwrap().partner);
-        assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
-        assert_eq!(Some("a".to_string()), guard.get(&"c".to_string()).unwrap().partner);
+        let cm = Arc::new(Mutex::new(fixture()));
+        let ab = try_select_partner(&cm, "a".to_string(), "b".to_string());
+        let cd = try_select_partner(&cm, "c".to_string(), "d".to_string());
+        if ab && cd {
+            quit_conversation(&cm, "a".to_string(), "b".to_string());
+            let guard = cm.lock().unwrap();
+            assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);
+            assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
+            assert_eq!(Some("d".to_string()), guard.get(&"c".to_string()).unwrap().partner);
+            assert_eq!(Some("c".to_string()), guard.get(&"d".to_string()).unwrap().partner);
+        } else {
+            assert!(false); // Don't pass if try_select_partner fails
+        }
     }
 
     fn fixture() -> ChatMap {
