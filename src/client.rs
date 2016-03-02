@@ -23,32 +23,40 @@ pub fn create_client(stream: TcpStream,
     
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut username = "".to_string();
-    
-    match reader.read_line(&mut username) {
-        Ok(n) => {
-            let username = username.trim().to_string();
-            let (sender_to_client, receiver_from_router) = channel();
-            
-            {
-                let mut guard = chat_map.lock().unwrap();
-                if n > 0 && !guard.contains_key(&username) {
-                    let client_info = ClientInfo{
-                        partner: None, 
-                        sender_to_client: sender_to_client
-                    };
-                    guard.insert(username.to_string(), client_info);
-                    println!("New user: {}", username.to_string());
+    let (sender_to_client, receiver_from_router) = channel();
+
+    loop {
+        match reader.read_line(&mut username) {
+            Ok(_) => {
+                username = username.trim().to_string();
+                
+                {
+                    let mut guard = chat_map.lock().unwrap();
+                    if username.len() > 0  && !guard.contains_key(&username) && &username[0..1] != "/" {
+
+                        let client_info = ClientInfo{
+                            partner: None, 
+                            sender_to_client: sender_to_client
+                        };
+                        guard.insert(username.to_string(), client_info);
+                        
+                        println!("New user: {}", username.to_string());
+                        break;
+                    }
+                    else {
+                        stream.write(&"Invalid username. Please try again.\n".to_string().into_bytes()).unwrap();
+                        username = "".to_string();
+                    }
                 }
-            }
-
-            let partner = choose_chat_partner(stream.try_clone().unwrap(), 
-                username.to_string(), chat_map);
-
-            chat(stream, username, partner, sender_to_router, receiver_from_router, chat_map);
-        },
-
-        Err(e) => println!("{}", e)
+            },
+            Err(e) => println!("{}", e)
+        }
     }
+
+    let partner = choose_chat_partner(stream.try_clone().unwrap(), 
+        username.to_string(), chat_map);
+
+    chat(stream, username, partner, sender_to_router, receiver_from_router, chat_map);
 }
 
 fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username: String) {
