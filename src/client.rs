@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 
-use chatmap::{ChatMap, ClientInfo};
+use chatmap::*;
 use command::{Command, parse_command};
 use message::Message;
 
@@ -32,7 +32,7 @@ pub fn create_client(stream: TcpStream,
                 
                 {
                     let mut guard = chat_map.lock().unwrap();
-                    if username.len() > 0  && !guard.contains_key(&username) && &username[0..1] != "/" {
+                    if is_valid_username(&*guard, username.to_string()) {
 
                         let client_info = ClientInfo{
                             partner: None, 
