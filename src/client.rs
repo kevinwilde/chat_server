@@ -67,11 +67,9 @@ fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username
     
     {
         let guard = chat_map.lock().unwrap();
-        for (name, client_info) in guard.iter() {
-            if &name[..] != &username[..] && client_info.partner == None {
-                stream.write(&name.to_string().into_bytes()).unwrap();
-                stream.write(&"\n".to_string().into_bytes()).unwrap();
-            }
+        let avail = available_users(&*guard, username);
+        for user in avail {
+            stream.write(&(user + "\n").to_string().into_bytes()).unwrap();
         }
     }
 }

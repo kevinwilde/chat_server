@@ -14,6 +14,16 @@ pub fn is_valid_username(chat_map: &ChatMap, username: String) -> bool {
 	username.len() > 0  && &username[0..1] != "/" && !chat_map.contains_key(&username)
 }
 
+pub fn available_users(chat_map: &ChatMap, username: String) -> Vec<String> {
+	let mut v = Vec::new();
+	for (name, client_info) in chat_map.iter() {
+        if &name[..] != &username[..] && client_info.partner == None {
+            v.push(name.to_string());
+        }
+    }
+    v
+}
+
 #[cfg(test)]
 mod chatmap_tests {
 	
@@ -38,6 +48,33 @@ mod chatmap_tests {
     	assert!(!is_valid_username(&cm, "".to_string()));
     	assert!(!is_valid_username(&cm, "/f".to_string()));    	
     	assert!(!is_valid_username(&cm, "/hello".to_string()));
+    }
+
+    use super::available_users;
+
+    #[test]
+    fn available_users_test_1() {
+    	let cm = fixture();
+    	let avail = available_users(&cm, "a".to_string());
+    	assert!(avail.contains(&"b".to_string()));
+    	assert!(avail.contains(&"c".to_string()));
+    	assert!(avail.contains(&"d".to_string()));
+    	assert!(avail.contains(&"e".to_string()));
+    }
+
+    #[test]
+    fn available_users_test_2() {
+    	let mut cm = fixture();
+
+    	// Set c and d as partners
+    	cm.get_mut(&"c".to_string()).unwrap().partner = Some("d".to_string());
+    	cm.get_mut(&"d".to_string()).unwrap().partner = Some("c".to_string());
+
+    	let avail = available_users(&cm, "a".to_string());
+    	assert!(avail.contains(&"b".to_string()));
+    	assert!(!avail.contains(&"c".to_string()));
+    	assert!(!avail.contains(&"d".to_string()));
+    	assert!(avail.contains(&"e".to_string()));
     }
 
 	fn fixture() -> ChatMap {
