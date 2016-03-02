@@ -5,7 +5,7 @@ use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 
 use chatmap::{ChatMap, ClientInfo};
-use command::Command;
+use command::{Command, parse_command};
 use message::Message;
 
 extern crate time;
@@ -153,12 +153,15 @@ fn chat(stream: TcpStream,
                                        line.to_string());
 
                 if &line[0..1] == "/" {
-                    match msg.command() {
+                    match parse_command(msg.content().to_string()) {
                         Command::Quit => {
                             println!("Quit command");
                             quit_conversation(&chat_map, username.to_string(), partner.to_string());
                             partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), &chat_map);
-                        }
+                        },
+                        Command::DisplayAvailable => {
+                            display_available(stream.try_clone().unwrap(), &chat_map, username.to_string());
+                        },
                         Command::Logoff => println!("Logoff command"),
                         Command::Unrecognized => println!("Unrecognized command")
                     }

@@ -1,5 +1,3 @@
-use command::Command;
-
 pub struct Message {
     date: String,
     from: String,
@@ -31,16 +29,5 @@ impl Message {
 
     pub fn content(&self) -> &String {
         &self.content
-    }
-
-    pub fn command(&self) -> Command {
-        if self.content() == "/q" {
-            Command::Quit
-        } else if self.content() == "/logoff" {
-            Command::Logoff
-        } else {
-            Command::Unrecognized
-        }
-
     }
 }
