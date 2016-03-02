@@ -162,7 +162,11 @@ fn chat(stream: TcpStream,
                     match parse_command(msg.content().to_string()) {
                         Command::Quit => {
                             println!("Quit command");
-                            quit_conversation(&chat_map, username.to_string(), partner.to_string());
+                            {
+                                let mut guard = chat_map.lock().unwrap();
+                                end_conversation(&mut *guard, username.to_string(), partner.to_string());
+                            }
+                            
                             partner = choose_chat_partner(stream.try_clone().unwrap(), username.to_string(), &chat_map);
                         },
                         Command::DisplayAvailable => {
@@ -206,12 +210,6 @@ fn receive_message(stream: TcpStream, msg: Message) {
     let mut stream = stream;
     let output = msg.from().to_string() + ": " + &msg.content()[..] + "\n";
     stream.write(&output.into_bytes()).unwrap();
-}
-
-fn quit_conversation(chat_map: &Arc<Mutex<ChatMap>>, username: String, partner: String) {
-    let mut guard = chat_map.lock().unwrap();
-    guard.get_mut(&username).unwrap().partner = None;
-    guard.get_mut(&partner).unwrap().partner = None;
 }
 
 
@@ -292,49 +290,6 @@ mod client_tests {
 
         // Fail: d already has a partner
         assert!(!try_select_partner(&cm, "e".to_string(), "d".to_string()));
-    }
-
-    use super::quit_conversation;
-
-    #[test]
-    fn quit_conversation_test_1() {
-        let cmap = Arc::new(Mutex::new(fixture()));
-        let ab = try_select_partner(&cmap, "a".to_string(), "b".to_string());
-        assert!(ab);
-        quit_conversation(&cmap, "a".to_string(), "b".to_string());
-        let guard = cmap.lock().unwrap();
-        assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);            
-        assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
-    }
-
-    #[test]
-    fn quit_conversation_test_2() {
-        let cmap = Arc::new(Mutex::new(fixture()));
-        let ab = try_select_partner(&cmap, "a".to_string(), "b".to_string());
-        let cd = try_select_partner(&cmap, "c".to_string(), "d".to_string());
-        assert!(ab);
-        assert!(cd);
-        quit_conversation(&cmap, "a".to_string(), "b".to_string());
-        let guard = cmap.lock().unwrap();
-        assert_eq!(None, guard.get(&"a".to_string()).unwrap().partner);
-        assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
-        assert_eq!(Some("d".to_string()), guard.get(&"c".to_string()).unwrap().partner);
-        assert_eq!(Some("c".to_string()), guard.get(&"d".to_string()).unwrap().partner);
-    }
-
-    #[test]
-    fn quit_conversation_test_3() {
-        let cmap = Arc::new(Mutex::new(fixture()));
-        let ab = try_select_partner(&cmap, "a".to_string(), "b".to_string());
-        assert!(ab);
-        quit_conversation(&cmap, "a".to_string(), "b".to_string());
-        let ac = try_select_partner(&cmap, "a".to_string(), "c".to_string());
-        assert!(ac);
-        quit_conversation(&cmap, "b".to_string(), "a".to_string());
-        let guard = cmap.lock().unwrap();
-        assert_eq!(Some("c".to_string()), guard.get(&"a".to_string()).unwrap().partner);
-        assert_eq!(None, guard.get(&"b".to_string()).unwrap().partner);
-        assert_eq!(Some("a".to_string()), guard.get(&"c".to_string()).unwrap().partner);
     }
 
     fn fixture() -> ChatMap {
