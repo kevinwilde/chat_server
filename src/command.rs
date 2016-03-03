@@ -2,7 +2,7 @@
 pub enum Command {
     Quit,
     DisplayAvailable,
-    Logoff,
+    Block,
     Unrecognized
 }
 
@@ -11,7 +11,7 @@ impl PartialEq for Command {
         match (self, other) {
             (&Command::Quit, &Command::Quit) => true,
             (&Command::DisplayAvailable, &Command::DisplayAvailable) => true,
-            (&Command::Logoff, &Command::Logoff) => true,
+            (&Command::Block, &Command::Block) => true,
             (&Command::Unrecognized, &Command::Unrecognized) => true,
             _ => false
         }
@@ -23,8 +23,8 @@ pub fn parse_command(cmd: String) -> Command {
         Command::Quit
     } else if cmd == "/list" {
         Command::DisplayAvailable
-    } else if cmd == "/logoff" {
-        Command::Logoff
+    } else if cmd == "/block" {
+        Command::Block
     } else {
         Command::Unrecognized
     }
@@ -54,9 +54,9 @@ mod command_tests {
     }
 
     #[test]
-    fn parse_command_test_logoff() {
-        let cmd = "/logoff".to_string();
-        assert_eq!(Command::Logoff, parse_command(cmd));
+    fn parse_command_test_block() {
+        let cmd = "/block".to_string();
+        assert_eq!(Command::Block, parse_command(cmd));
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod command_tests {
         assert_eq!(Command::Unrecognized, parse_command(cmd));
         let cmd = "list".to_string();
         assert_eq!(Command::Unrecognized, parse_command(cmd));
-        let cmd = "logoff".to_string();
+        let cmd = "block".to_string();
         assert_eq!(Command::Unrecognized, parse_command(cmd));
     }
 }

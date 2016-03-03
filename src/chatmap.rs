@@ -7,7 +7,8 @@ pub type ChatMap = HashMap<String, ClientInfo>;
 
 pub struct ClientInfo {
     pub partner: Option<String>,
-    pub sender_to_client: Sender<Message>
+    pub sender_to_client: Sender<Message>,
+    pub blocked_users : Vec<String>
 }
 
 pub fn is_valid_username(chat_map: &ChatMap, username: String) -> bool {
@@ -16,8 +17,14 @@ pub fn is_valid_username(chat_map: &ChatMap, username: String) -> bool {
 
 pub fn available_users(chat_map: &ChatMap, username: String) -> Vec<String> {
 	let mut v = Vec::new();
+    let my_client_info = chat_map.get(&username).unwrap();
+    let my_blocked_users = &my_client_info.blocked_users;
+
 	for (name, client_info) in chat_map.iter() {
-        if &name[..] != &username[..] && client_info.partner == None {
+        if &name[..] != &username[..] 
+          && client_info.partner == None  
+          && !client_info.blocked_users.contains(&username) 
+          && !my_blocked_users.contains(name) {
             v.push(name.to_string());
         }
     }

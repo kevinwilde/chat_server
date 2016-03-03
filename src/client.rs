@@ -35,7 +35,8 @@ pub fn create_client(stream: TcpStream,
 
                         let client_info = ClientInfo{
                             partner: None, 
-                            sender_to_client: sender_to_client
+                            sender_to_client: sender_to_client,
+                            blocked_users : vec![],
                         };
                         guard.insert(username.to_string(), client_info);
                         
@@ -160,10 +161,18 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
     let success: bool;
     {
         let mut guard = chat_map.lock().expect("Error locking chatmap");
+
+        {
+            let my_client_info = guard.get(&username).unwrap();
+            if my_client_info.blocked_users.contains(&partner) {
+                return false;
+            }
+        }
         
         match guard.get_mut(&partner) {
             Some(clientinfo) => {
                 if &partner[..] != &username[..]
+                    && !clientinfo.blocked_users.contains(&username.to_string())
                     && (clientinfo.partner == None 
                         || clientinfo.partner == Some(username.to_string())) {
                     clientinfo.partner = Some(username.to_string());
@@ -218,7 +227,7 @@ fn chat(stream: TcpStream,
                                     quit_conversation(&mut *guard, username.to_string());
                                 }
 
-                                let quit_msg = "Your partner has quit out of the conversation. Type /q to quit.";
+                                let quit_msg = "I have quit out of the conversation. Type /q to quit.";
                                 
                                 let msg = Message::new(time::now().asctime().to_string(), 
                                                            username.to_string(), 
@@ -234,7 +243,26 @@ fn chat(stream: TcpStream,
                                 display_available(stream.try_clone().expect("Error cloning stream"), 
                                     &chat_map, username.to_string());
                             },
-                            Command::Logoff => println!("Logoff command"),
+                            Command::Block => {
+                                {
+                                    let mut guard = chat_map.lock().expect("Error locking chatmap");
+                                    quit_conversation(&mut *guard, username.to_string());
+                                    let mut client_info = guard.get_mut(&username).unwrap();
+                                    client_info.blocked_users.push(partner.to_string());
+                                }
+
+                                let quit_msg = "I have blocked you and quit out of the conversation. Type /q to quit.";
+                                
+                                let msg = Message::new(time::now().asctime().to_string(), 
+                                                           username.to_string(), 
+                                                           partner.to_string(), 
+                                                           quit_msg.to_string());
+                                
+                                sender_to_router.send(msg).expect("Error sending message");
+                                
+                                partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
+                                    username.to_string(), &chat_map);
+                            },
                             Command::Unrecognized => println!("Unrecognized command")
                         }
                     } else {
