@@ -80,14 +80,25 @@ fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username
 fn choose_chat_partner(stream: TcpStream, 
                        username: String, 
                        chat_map: &Arc<Mutex<ChatMap>>) -> String {
+    let no_partner = Arc::new(Mutex::new(true));
 
+    // Allow you to start a chat
     {
         let chat_map = chat_map.clone();
         let username = username.to_string();
         let mut stream = stream.try_clone().expect("Error cloning stream");
+        let no_partner = no_partner.clone();
 
         thread::spawn(move|| {
+
             loop {
+                {
+                    let guard = no_partner.lock().unwrap();
+                    if !*guard {
+                        println!("HERE");
+                        break;
+                    }
+                }
                 display_available(stream.try_clone().expect("Error cloning stream"), 
                     &chat_map, username.to_string());
                 
@@ -96,25 +107,28 @@ fn choose_chat_partner(stream: TcpStream,
                 
                 let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
                 let mut partner = "".to_string();
-
+                println!("Here {}", &partner);
                 match reader.read_line(&mut partner) {
                     Ok(_) => {
                         partner = partner.trim().to_string();
 
                         if try_select_partner(&chat_map, username.to_string(), partner.to_string()) {
-                            return partner; 
+                            return partner;
                         }
                     },
                     Err(e) => println!("{}", e)
                 }
             }
+            return "Garbage".to_string();
         });
     }
     
+    // Check if someone else has started a chat with you
     {
         let chat_map = chat_map.clone();
         let username = username.to_string();
         let mut stream = stream.try_clone().expect("Error cloning stream");
+        let no_partner = no_partner.clone();
 
         let h = thread::spawn(move|| {
             loop {
@@ -123,8 +137,12 @@ fn choose_chat_partner(stream: TcpStream,
                 match &guard.get(&username).unwrap().partner {
                     &Some(ref p) => {
                         println!("{} chatting with {}", &username, p);
-                        let chatting_msg = "Now chatting with ".to_string() + p + "\n";
+                        let chatting_msg = "Now chatting with ".to_string() + p + ". Press enter to start chatting.\n";
                         stream.write(&chatting_msg.into_bytes()).expect("Error writing to stream");
+                        {
+                            let mut guard = no_partner.lock().unwrap();
+                            *guard = false;
+                        }
                         return p.to_string();
                     }
                     &None => continue
@@ -191,28 +209,29 @@ fn chat(stream: TcpStream,
                                        username.to_string(), 
                                        partner.to_string(), 
                                        line.to_string());
-
-                if &line[0..1] == "/" {
-                    match parse_command(msg.content().to_string()) {
-                        Command::Quit => {
-                            println!("Quit command");
-                            {
-                                let mut guard = chat_map.lock().expect("Error locking chatmap");
-                                end_conversation(&mut *guard, username.to_string(), partner.to_string());
-                            }
-                            
-                            partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
-                                username.to_string(), &chat_map);
-                        },
-                        Command::DisplayAvailable => {
-                            display_available(stream.try_clone().expect("Error cloning stream"), 
-                                &chat_map, username.to_string());
-                        },
-                        Command::Logoff => println!("Logoff command"),
-                        Command::Unrecognized => println!("Unrecognized command")
+                if line.len() > 0 {
+                    if &line[0..1] == "/" {
+                        match parse_command(msg.content().to_string()) {
+                            Command::Quit => {
+                                println!("Quit command");
+                                {
+                                    let mut guard = chat_map.lock().expect("Error locking chatmap");
+                                    end_conversation(&mut *guard, username.to_string(), partner.to_string());
+                                }
+                                
+                                partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
+                                    username.to_string(), &chat_map);
+                            },
+                            Command::DisplayAvailable => {
+                                display_available(stream.try_clone().expect("Error cloning stream"), 
+                                    &chat_map, username.to_string());
+                            },
+                            Command::Logoff => println!("Logoff command"),
+                            Command::Unrecognized => println!("Unrecognized command")
+                        }
+                    } else {
+                        sender_to_router.send(msg).expect("Error sending message");
                     }
-                } else {
-                    sender_to_router.send(msg).expect("Error sending message");
                 }
             }
         });
