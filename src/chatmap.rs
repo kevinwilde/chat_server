@@ -88,6 +88,57 @@ mod chatmap_tests {
     	assert!(avail.contains(&"e".to_string()));
     }
 
+    #[test]
+    fn available_users_test_3_blocking() {
+        let mut cm = fixture();
+
+        // a blocks b
+        cm.get_mut(&"a".to_string()).unwrap().blocked_users.push("b".to_string());
+
+        // a asks for available users
+        let avail = available_users(&cm, "a".to_string());
+
+        // b not listed anymore
+        assert!(!avail.contains(&"b".to_string()));
+        assert!(avail.contains(&"c".to_string()));
+        assert!(avail.contains(&"d".to_string()));
+        assert!(avail.contains(&"e".to_string()));
+    }
+
+    #[test]
+    fn available_users_test_4_blocking() {
+        let mut cm = fixture();
+
+        // a blocks b
+        cm.get_mut(&"a".to_string()).unwrap().blocked_users.push("b".to_string());
+
+        // b asks for available users
+        let avail = available_users(&cm, "b".to_string());
+
+        // a not listed anymore
+        assert!(!avail.contains(&"a".to_string()));
+        assert!(avail.contains(&"c".to_string()));
+        assert!(avail.contains(&"d".to_string()));
+        assert!(avail.contains(&"e".to_string()));
+    }
+
+    #[test]
+    fn available_users_test_5_blocking() {
+        let mut cm = fixture();
+
+        // a blocks everyone
+        cm.get_mut(&"a".to_string()).unwrap().blocked_users.push("b".to_string());
+        cm.get_mut(&"a".to_string()).unwrap().blocked_users.push("c".to_string());
+        cm.get_mut(&"a".to_string()).unwrap().blocked_users.push("d".to_string());
+        cm.get_mut(&"a".to_string()).unwrap().blocked_users.push("e".to_string());
+
+        // a asks for available users
+        let avail = available_users(&cm, "a".to_string());
+
+        // nobody listed as available
+        assert_eq!(0, avail.len());
+    }
+
     use super::quit_conversation;
 
     #[test]
