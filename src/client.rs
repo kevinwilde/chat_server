@@ -31,12 +31,13 @@ pub fn create_client(stream: TcpStream,
                 
                 {
                     let mut guard = chat_map.lock().expect("Error locking chatmap");
+                    
                     if is_valid_username(&*guard, username.to_string()) {
 
                         let client_info = ClientInfo{
                             partner: None, 
                             sender_to_client: sender_to_client,
-                            blocked_users : vec![],
+                            blocked_users: Vec::new(),
                         };
                         guard.insert(username.to_string(), client_info);
                         
@@ -388,27 +389,32 @@ mod client_tests {
         let (sender_to_a, _) = channel();
         cm.insert("a".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_a
+            sender_to_client: sender_to_a,
+            blocked_users: Vec::new()
         });
         let (sender_to_b, _) = channel();
         cm.insert("b".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_b
+            sender_to_client: sender_to_b,
+            blocked_users: Vec::new()
         });
         let (sender_to_c, _) = channel();
         cm.insert("c".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_c
+            sender_to_client: sender_to_c,
+            blocked_users: Vec::new()
         });
         let (sender_to_d, _) = channel();
         cm.insert("d".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_d
+            sender_to_client: sender_to_d,
+            blocked_users: Vec::new()
         });
         let (sender_to_e, _) = channel();
         cm.insert("e".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_e
+            sender_to_client: sender_to_e,
+            blocked_users: Vec::new()
         });
         cm
     }

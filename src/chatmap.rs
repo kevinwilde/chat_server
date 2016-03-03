@@ -88,62 +88,63 @@ mod chatmap_tests {
     	assert!(avail.contains(&"e".to_string()));
     }
 
-    // use super::end_conversation;
+    use super::quit_conversation;
 
-    // #[test]
-    // fn end_conversation_test_1() {
-    //     let mut cm = fixture();
+    #[test]
+    fn quit_conversation_test_1() {
+        let mut cm = fixture();
         
-    //     // Set a and b as partners
-    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
-    //     cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
+        // Set a and b as partners
+        cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
+        cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
 
-    //     end_conversation(&mut cm, "a".to_string(), "b".to_string());
+        quit_conversation(&mut cm, "a".to_string());
         
-    //     assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);            
-    //     assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
-    // }
+        assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);            
+        assert_eq!(Some("a".to_string()), cm.get(&"b".to_string()).unwrap().partner);
+    }
 
-    // #[test]
-    // fn end_conversation_test_2() {
-    //     let mut cm = fixture();
+    #[test]
+    fn quit_conversation_test_2() {
+        let mut cm = fixture();
 
-    //     // Set a and b as partners
-    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
-    //     cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
+        // Set a and b as partners
+        cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
+        cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
         
-    //     // Set c and d as partners
-    //     cm.get_mut(&"c".to_string()).unwrap().partner = Some("d".to_string());
-    //     cm.get_mut(&"d".to_string()).unwrap().partner = Some("c".to_string());
+        // Set c and d as partners
+        cm.get_mut(&"c".to_string()).unwrap().partner = Some("d".to_string());
+        cm.get_mut(&"d".to_string()).unwrap().partner = Some("c".to_string());
         
-    //     end_conversation(&mut cm, "a".to_string(), "b".to_string());
+        quit_conversation(&mut cm, "a".to_string());
+        quit_conversation(&mut cm, "b".to_string());
         
-    //     assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);
-    //     assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
-    //     assert_eq!(Some("d".to_string()), cm.get(&"c".to_string()).unwrap().partner);
-    //     assert_eq!(Some("c".to_string()), cm.get(&"d".to_string()).unwrap().partner);
-    // }
+        assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);
+        assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
+        assert_eq!(Some("d".to_string()), cm.get(&"c".to_string()).unwrap().partner);
+        assert_eq!(Some("c".to_string()), cm.get(&"d".to_string()).unwrap().partner);
+    }
 
-    // #[test]
-    // fn end_conversation_test_3() {
-    //     let mut cm = fixture();
+    #[test]
+    fn quit_conversation_test_3() {
+        let mut cm = fixture();
         
-    //     // Set a and b as partners
-    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
-    //     cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
+        // Set a and b as partners
+        cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
+        cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
 
-    //     end_conversation(&mut cm, "a".to_string(), "b".to_string());
+        quit_conversation(&mut cm, "a".to_string());
         
-    //     // Set a and c as partners
-    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("c".to_string());
-    //     cm.get_mut(&"c".to_string()).unwrap().partner = Some("a".to_string());        
+        // Set a and c as partners
+        cm.get_mut(&"a".to_string()).unwrap().partner = Some("c".to_string());
+        cm.get_mut(&"c".to_string()).unwrap().partner = Some("a".to_string());        
 
-    //     end_conversation(&mut cm, "b".to_string(), "a".to_string());
+        quit_conversation(&mut cm, "b".to_string());
 
-    //     assert_eq!(Some("c".to_string()), cm.get(&"a".to_string()).unwrap().partner);
-    //     assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
-    //     assert_eq!(Some("a".to_string()), cm.get(&"c".to_string()).unwrap().partner);
-    // }
+        assert_eq!(Some("c".to_string()), cm.get(&"a".to_string()).unwrap().partner);
+        assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
+        assert_eq!(Some("a".to_string()), cm.get(&"c".to_string()).unwrap().partner);
+    }
 
 
 	fn fixture() -> ChatMap {
@@ -151,27 +152,32 @@ mod chatmap_tests {
         let (sender_to_a, _) = channel();
         cm.insert("a".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_a
+            sender_to_client: sender_to_a,
+            blocked_users: Vec::new()
         });
         let (sender_to_b, _) = channel();
         cm.insert("b".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_b
+            sender_to_client: sender_to_b,
+            blocked_users: Vec::new()
         });
         let (sender_to_c, _) = channel();
         cm.insert("c".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_c
+            sender_to_client: sender_to_c,
+            blocked_users: Vec::new()
         });
         let (sender_to_d, _) = channel();
         cm.insert("d".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_d
+            sender_to_client: sender_to_d,
+            blocked_users: Vec::new()
         });
         let (sender_to_e, _) = channel();
         cm.insert("e".to_string(), ClientInfo{
             partner: None,
-            sender_to_client: sender_to_e
+            sender_to_client: sender_to_e,
+            blocked_users: Vec::new()
         });
         cm
     }
