@@ -193,6 +193,7 @@ fn chat(stream: TcpStream,
         chat_map: &Arc<Mutex<ChatMap>>) {
 
     let mut partner = partner.to_string();
+    let no_partner = Arc::new(Mutex::new(false));
     
     // Send messages
     {
@@ -200,9 +201,21 @@ fn chat(stream: TcpStream,
         let chat_map = chat_map.clone();
         let stream = stream.try_clone().expect("Error cloning stream");
         let reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
+        let no_partner = no_partner.clone();
         thread::spawn(move|| {
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
+                {
+                    let mut no_partner_guard = no_partner.lock().unwrap();
+                    //True only if your partner was the one that disconnected.
+                    if *no_partner_guard {
+                        println!("LEAVE CONNECTION");
+                        partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
+                                    username.to_string(), &chat_map);
+                        *no_partner_guard = false;
+                        continue;
+                    }
+                }
                 println!("{}",line);
 
                 let msg = Message::new(time::now().asctime().to_string(), 
@@ -216,11 +229,22 @@ fn chat(stream: TcpStream,
                                 println!("Quit command");
                                 {
                                     let mut guard = chat_map.lock().expect("Error locking chatmap");
-                                    end_conversation(&mut *guard, username.to_string(), partner.to_string());
+                                    {
+                                        let mut no_partner_guard = no_partner.lock().unwrap();
+                                        end_conversation(&mut *guard, username.to_string(), partner.to_string());
+                                        //You don't have a partner anymore, so we set this to true.
+                                        *no_partner_guard = true;
+                                    }
                                 }
-                                
+
+                                //We let go of the no_partner lock here so that the receiver thread lets go of the chat_map.
                                 partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
-                                    username.to_string(), &chat_map);
+                                            username.to_string(), &chat_map);
+                                {
+                                  let mut no_partner_guard = no_partner.lock().unwrap();
+                                  //At this point, you have a partner again! Resume chatting like always.
+                                   *no_partner_guard = false;
+                                }
                             },
                             Command::DisplayAvailable => {
                                 display_available(stream.try_clone().expect("Error cloning stream"), 
@@ -240,21 +264,58 @@ fn chat(stream: TcpStream,
     // Receive Messages
     {
         let username = username.clone();
+        let chat_map = chat_map.clone();
+        let no_partner = no_partner.clone();
         thread::spawn(move|| {
             loop {
-                let stream = stream.try_clone().expect("Error cloning stream");
-                match receiver_from_router.try_recv() {
-                    Ok(msg) => {
-                        println!("User {} received message: {}", 
-                            &username, msg.content());
+                {
+                    let no_partner_guard = no_partner.lock().unwrap();
+                    //If you don't currently have a partner yet, no need to go further through the loop.
+                    if *no_partner_guard {
+                        continue;
+                    }
+                }
+                let guard = chat_map.lock().expect("Error locking chatmap");
 
-                        receive_message(stream, msg);
-                    },
+                match &guard.get(&username).unwrap().partner {
+                    &Some(_) => {
+                        let stream = stream.try_clone().expect("Error cloning stream");
+                        match receiver_from_router.try_recv() {
+                        Ok(msg) => {
+                            println!("User {} received message: {}", 
+                                &username, msg.content());
 
-                    Err(TryRecvError::Empty) => continue,
+                            receive_message(stream, msg);
+                        },
 
-                    Err(TryRecvError::Disconnected) => 
-                        panic!("User {} disconnected from router", &username)
+                        Err(TryRecvError::Empty) => continue,
+
+                        Err(TryRecvError::Disconnected) => 
+                            panic!("User {} disconnected from router", &username)
+                        }
+                    }
+                    &None => {
+                        {
+                            let no_partner_guard = no_partner.lock().unwrap();
+                            //Returns true if you were the one to disconnect.
+                            if *no_partner_guard {
+                                println!("{} disconnected from partner", &username);
+                                continue;
+                            }
+                        }
+
+                        //If your partner disconnected on you, you should be notified...
+                        println!("Partner disconnected from {}", &username);
+                        let mut stream = stream.try_clone().expect("Error cloning stream");
+                        let disconnected_msg = "Partner disconnected. Press enter to find a new partner.\n";
+                        stream.write(&disconnected_msg.to_string().into_bytes()).expect("Error writing to stream");
+                        {
+                            let mut no_partner_guard = no_partner.lock().unwrap();
+                            *no_partner_guard = true;
+                        }
+
+                        continue;
+                    }
                 }
             }
         });
