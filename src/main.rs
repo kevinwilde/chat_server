@@ -35,8 +35,9 @@ fn main() {
 
                 if let Some(client_info) = guard.get(msg.to()) {
                     if let Some(ref p) = client_info.partner {
-                        assert_eq!(&p[..], &msg.from()[..]);
-                        client_info.sender_to_client.send(msg).expect("Error sending message");
+                        if &p[..] == &msg.from()[..] {
+                            client_info.sender_to_client.send(msg).expect("Error sending message");
+                        }
                     }
                 } else {
                     println!("{} does not exist in hashmap", msg.to());

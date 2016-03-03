@@ -16,9 +16,8 @@ pub fn create_client(stream: TcpStream,
 
     println!("New client");
     let mut stream = stream;
-    
-    stream.write(&"Welcome to Smazy\n".to_string().into_bytes()).expect("Error writing to stream");
-    stream.write(&"Please enter a username:\n".to_string().into_bytes()).expect("Error writing to stream");
+    let welcome_msg = "Welcome to Smazy\nPlease enter a username:\n".to_string();
+    stream.write(&welcome_msg.into_bytes()).expect("Error writing to stream");
     stream.flush().unwrap();
     
     let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
@@ -44,7 +43,8 @@ pub fn create_client(stream: TcpStream,
                         break;
                     }
                     else {
-                        stream.write(&"Invalid username. Please try again.\n".to_string().into_bytes()).expect("Error writing to stream");
+                        let invalid_msg = "Invalid username. Please try again.\n".to_string();
+                        stream.write(&invalid_msg.into_bytes()).expect("Error writing to stream");
                         username = "".to_string();
                     }
                 }
@@ -65,42 +65,75 @@ fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username
     let show_available_msg = "Here are the users available to chat:\n".to_string();
     stream.write(&show_available_msg.into_bytes()).expect("Error writing to stream");
     
+    let avail;
+    
     {
         let guard = chat_map.lock().expect("Error locking chatmap");
-        let avail = available_users(&*guard, username);
-        for user in avail {
-            stream.write(&(user + "\n").to_string().into_bytes()).expect("Error writing to stream");
-        }
+        avail = available_users(&*guard, username);
+    }
+
+    for user in avail {
+        stream.write(&(user + "\n").to_string().into_bytes()).expect("Error writing to stream");
     }
 }
 
 fn choose_chat_partner(stream: TcpStream, 
                        username: String, 
                        chat_map: &Arc<Mutex<ChatMap>>) -> String {
-    
-    display_available(stream.try_clone().expect("Error cloning stream"), 
-        &chat_map, username.to_string());
-    
-    let mut stream = stream;
-    
-    let select_msg = "Select who you want to chat with:\n".to_string();
-    stream.write(&select_msg.into_bytes()).expect("Error writing to stream");
-    
-    let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
-    let mut partner = "".to_string();
-    
-    match reader.read_line(&mut partner) {
-        Ok(_) => {
-            partner = partner.trim().to_string();
 
-            if !try_select_partner(chat_map, username.to_string(), partner.to_string()) {
-                return choose_chat_partner(stream, username, chat_map);
+    {
+        let chat_map = chat_map.clone();
+        let username = username.to_string();
+        let mut stream = stream.try_clone().expect("Error cloning stream");
+
+        thread::spawn(move|| {
+            loop {
+                display_available(stream.try_clone().expect("Error cloning stream"), 
+                    &chat_map, username.to_string());
+                
+                let select_msg = "Select who you want to chat with:\n".to_string();
+                stream.write(&select_msg.into_bytes()).expect("Error writing to stream");
+                
+                let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
+                let mut partner = "".to_string();
+
+                match reader.read_line(&mut partner) {
+                    Ok(_) => {
+                        partner = partner.trim().to_string();
+
+                        if try_select_partner(&chat_map, username.to_string(), partner.to_string()) {
+                            return partner; 
+                        }
+                    },
+                    Err(e) => println!("{}", e)
+                }
             }
-        }
-        Err(e) => println!("{}", e)
+        });
     }
     
-    partner
+    {
+        let chat_map = chat_map.clone();
+        let username = username.to_string();
+        let mut stream = stream.try_clone().expect("Error cloning stream");
+
+        let h = thread::spawn(move|| {
+            loop {
+                let guard = chat_map.lock().expect("Error locking chatmap");
+
+                match &guard.get(&username).unwrap().partner {
+                    &Some(ref p) => {
+                        println!("{} chatting with {}", &username, p);
+                        let chatting_msg = "Now chatting with ".to_string() + p + "\n";
+                        stream.write(&chatting_msg.into_bytes()).expect("Error writing to stream");
+                        return p.to_string();
+                    }
+                    &None => continue
+                }
+            }
+        });
+
+        return h.join().unwrap();
+    }
 }
 
 fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, 
