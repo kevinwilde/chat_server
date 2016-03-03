@@ -24,38 +24,8 @@ pub fn available_users(chat_map: &ChatMap, username: String) -> Vec<String> {
     v
 }
 
-pub fn end_conversation(chat_map: &mut ChatMap, user1: String, user2: String) {
-    {
-        let user1_partner = &chat_map.get(&user1).unwrap().partner;
-        let user2_partner = &chat_map.get(&user2).unwrap().partner;
-        
-        match user1_partner {
-            &Some(ref name) => {
-                if &name[..] != &user2[..] {
-                    return;
-                }
-            },
-            &None => return
-        }
-
-        match user2_partner {
-            &Some(ref name) => {
-                if &name[..] != &user1[..] {
-                    return;
-                }
-            },
-            &None => return
-        }
-    }
-
-    chat_map.get_mut(&user1).unwrap().partner = None;
-    chat_map.get_mut(&user2).unwrap().partner = None;
-
-    // if user1_partner == Some(user2.to_string()) 
-    //    && user2_partner == Some(user1.to_string()) {
-    //     chat_map.get_mut(&user1).unwrap().partner = None;
-    //     chat_map.get_mut(&user2).unwrap().partner = None;
-    // }
+pub fn quit_conversation(chat_map: &mut ChatMap, username: String) {
+    chat_map.get_mut(&username).unwrap().partner = None;
 }
 
 #[cfg(test)]
@@ -111,62 +81,62 @@ mod chatmap_tests {
     	assert!(avail.contains(&"e".to_string()));
     }
 
-    use super::end_conversation;
+    // use super::end_conversation;
 
-    #[test]
-    fn end_conversation_test_1() {
-        let mut cm = fixture();
+    // #[test]
+    // fn end_conversation_test_1() {
+    //     let mut cm = fixture();
         
-        // Set a and b as partners
-        cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
-        cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
+    //     // Set a and b as partners
+    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
+    //     cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
 
-        end_conversation(&mut cm, "a".to_string(), "b".to_string());
+    //     end_conversation(&mut cm, "a".to_string(), "b".to_string());
         
-        assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);            
-        assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
-    }
+    //     assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);            
+    //     assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
+    // }
 
-    #[test]
-    fn end_conversation_test_2() {
-        let mut cm = fixture();
+    // #[test]
+    // fn end_conversation_test_2() {
+    //     let mut cm = fixture();
 
-        // Set a and b as partners
-        cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
-        cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
+    //     // Set a and b as partners
+    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
+    //     cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
         
-        // Set c and d as partners
-        cm.get_mut(&"c".to_string()).unwrap().partner = Some("d".to_string());
-        cm.get_mut(&"d".to_string()).unwrap().partner = Some("c".to_string());
+    //     // Set c and d as partners
+    //     cm.get_mut(&"c".to_string()).unwrap().partner = Some("d".to_string());
+    //     cm.get_mut(&"d".to_string()).unwrap().partner = Some("c".to_string());
         
-        end_conversation(&mut cm, "a".to_string(), "b".to_string());
+    //     end_conversation(&mut cm, "a".to_string(), "b".to_string());
         
-        assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);
-        assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
-        assert_eq!(Some("d".to_string()), cm.get(&"c".to_string()).unwrap().partner);
-        assert_eq!(Some("c".to_string()), cm.get(&"d".to_string()).unwrap().partner);
-    }
+    //     assert_eq!(None, cm.get(&"a".to_string()).unwrap().partner);
+    //     assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
+    //     assert_eq!(Some("d".to_string()), cm.get(&"c".to_string()).unwrap().partner);
+    //     assert_eq!(Some("c".to_string()), cm.get(&"d".to_string()).unwrap().partner);
+    // }
 
-    #[test]
-    fn end_conversation_test_3() {
-        let mut cm = fixture();
+    // #[test]
+    // fn end_conversation_test_3() {
+    //     let mut cm = fixture();
         
-        // Set a and b as partners
-        cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
-        cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
+    //     // Set a and b as partners
+    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("b".to_string());
+    //     cm.get_mut(&"b".to_string()).unwrap().partner = Some("a".to_string());
 
-        end_conversation(&mut cm, "a".to_string(), "b".to_string());
+    //     end_conversation(&mut cm, "a".to_string(), "b".to_string());
         
-        // Set a and c as partners
-        cm.get_mut(&"a".to_string()).unwrap().partner = Some("c".to_string());
-        cm.get_mut(&"c".to_string()).unwrap().partner = Some("a".to_string());        
+    //     // Set a and c as partners
+    //     cm.get_mut(&"a".to_string()).unwrap().partner = Some("c".to_string());
+    //     cm.get_mut(&"c".to_string()).unwrap().partner = Some("a".to_string());        
 
-        end_conversation(&mut cm, "b".to_string(), "a".to_string());
+    //     end_conversation(&mut cm, "b".to_string(), "a".to_string());
 
-        assert_eq!(Some("c".to_string()), cm.get(&"a".to_string()).unwrap().partner);
-        assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
-        assert_eq!(Some("a".to_string()), cm.get(&"c".to_string()).unwrap().partner);
-    }
+    //     assert_eq!(Some("c".to_string()), cm.get(&"a".to_string()).unwrap().partner);
+    //     assert_eq!(None, cm.get(&"b".to_string()).unwrap().partner);
+    //     assert_eq!(Some("a".to_string()), cm.get(&"c".to_string()).unwrap().partner);
+    // }
 
 
 	fn fixture() -> ChatMap {

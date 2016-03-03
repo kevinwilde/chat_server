@@ -95,7 +95,6 @@ fn choose_chat_partner(stream: TcpStream,
                 {
                     let guard = no_partner.lock().unwrap();
                     if !*guard {
-                        println!("HERE");
                         break;
                     }
                 }
@@ -107,7 +106,7 @@ fn choose_chat_partner(stream: TcpStream,
                 
                 let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
                 let mut partner = "".to_string();
-                println!("Here {}", &partner);
+                
                 match reader.read_line(&mut partner) {
                     Ok(_) => {
                         partner = partner.trim().to_string();
@@ -216,8 +215,17 @@ fn chat(stream: TcpStream,
                                 println!("Quit command");
                                 {
                                     let mut guard = chat_map.lock().expect("Error locking chatmap");
-                                    end_conversation(&mut *guard, username.to_string(), partner.to_string());
+                                    quit_conversation(&mut *guard, username.to_string());
                                 }
+
+                                let quit_msg = "Your partner has quit out of the conversation. Type /q to quit.";
+                                
+                                let msg = Message::new(time::now().asctime().to_string(), 
+                                                           username.to_string(), 
+                                                           partner.to_string(), 
+                                                           quit_msg.to_string());
+                                
+                                sender_to_router.send(msg).expect("Error sending message");
                                 
                                 partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
                                     username.to_string(), &chat_map);
