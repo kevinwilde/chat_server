@@ -4,9 +4,12 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
 
-use chatmap::*;
-use command::{Command, parse_command};
+use chatmap::{ChatMap, ClientInfo};
+use command::Command;
 use message::Message;
+
+use chatmap::{available_users, is_valid_username, quit_conversation};
+use command::parse_command;
 
 extern crate time;
 
@@ -28,28 +31,26 @@ pub fn create_client(stream: TcpStream,
         match reader.read_line(&mut username) {
             Ok(_) => {
                 username = username.trim().to_string();
+
+                let mut guard = chat_map.lock().expect("Error locking chatmap");
                 
-                {
-                    let mut guard = chat_map.lock().expect("Error locking chatmap");
+                if is_valid_username(&*guard, username.to_string()) {
+
+                    let client_info = ClientInfo{
+                        partner: None, 
+                        sender_to_client: sender_to_client,
+                        blocked_users: Vec::new(),
+                    };
+
+                    guard.insert(username.to_string(), client_info);
                     
-                    if is_valid_username(&*guard, username.to_string()) {
-
-                        let client_info = ClientInfo{
-                            partner: None, 
-                            sender_to_client: sender_to_client,
-                            blocked_users: Vec::new(),
-                        };
-
-                        guard.insert(username.to_string(), client_info);
-                        
-                        println!("New user: {}", username);
-                        break;
-                    }
-                    else {
-                        let invalid_msg = "Invalid username. Please try again.\n".to_string();
-                        stream.write(&invalid_msg.into_bytes()).expect("Error writing to stream");
-                        username = "".to_string();
-                    }
+                    println!("New user: {}", username);
+                    break;
+                }
+                else {
+                    let invalid_msg = "Invalid username. Please try again.\n".to_string();
+                    stream.write(&invalid_msg.into_bytes()).expect("Error writing to stream");
+                    username = "".to_string();
                 }
             },
             Err(e) => println!("{}", e)
@@ -176,7 +177,7 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
     }
 
     let mut guard = chat_map.lock().expect("Error locking chatmap");
-
+    
     {
         // Not allowed to select someone you have blocked
         let my_client_info = guard.get(&username).unwrap();
@@ -185,7 +186,7 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
         }
     }
 
-    let success: bool;    
+    let success: bool;
 
     if let Some(clientinfo) = guard.get(&partner) {
         // If they haven't blocked you && they don't already have a partner
