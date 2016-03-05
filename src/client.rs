@@ -42,7 +42,7 @@ pub fn create_client(stream: TcpStream,
 
                         guard.insert(username.to_string(), client_info);
                         
-                        println!("New user: {}", username.to_string());
+                        println!("New user: {}", username);
                         break;
                     }
                     else {
@@ -146,7 +146,7 @@ fn choose_chat_partner(stream: TcpStream,
                 let guard = chat_map.lock().expect("Error locking chatmap");
 
                 if let &Some(ref p) = &guard.get(&username).unwrap().partner {
-                    println!("{} chatting with {}", &username, p);
+                    println!("{} chatting with {}", username, p);
                     
                     let chatting_msg = "Now chatting with ".to_string() 
                                         + p + ". Press enter to start chatting.\n";
@@ -297,7 +297,7 @@ fn chat(stream: TcpStream,
                     Err(TryRecvError::Empty) => continue,
 
                     Err(TryRecvError::Disconnected) => 
-                        panic!("User {} disconnected from router", &username)
+                        panic!("User {} disconnected from router", username)
                 }
             }
         });
