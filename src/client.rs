@@ -39,6 +39,7 @@ pub fn create_client(stream: TcpStream,
                             sender_to_client: sender_to_client,
                             blocked_users: Vec::new(),
                         };
+
                         guard.insert(username.to_string(), client_info);
                         
                         println!("New user: {}", username.to_string());
@@ -82,14 +83,15 @@ fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username
 fn choose_chat_partner(stream: TcpStream, 
                        username: String, 
                        chat_map: &Arc<Mutex<ChatMap>>) -> String {
+    
     let no_partner = Arc::new(Mutex::new(true));
 
     // Allow you to start a chat
     {
         let chat_map = chat_map.clone();
+        let no_partner = no_partner.clone();
         let username = username.to_string();
         let mut stream = stream.try_clone().expect("Error cloning stream");
-        let no_partner = no_partner.clone();
 
         thread::spawn(move|| {
 
@@ -120,16 +122,19 @@ fn choose_chat_partner(stream: TcpStream,
                     Err(e) => println!("{}", e)
                 }
             }
-            return "Garbage".to_string();
+
+            // Value returned from this thread is unused
+            // Rust compiler complains if we don't return a String
+            return "Unused".to_string();
         });
     }
     
     // Check if someone else has started a chat with you
     {
         let chat_map = chat_map.clone();
+        let no_partner = no_partner.clone();
         let username = username.to_string();
         let mut stream = stream.try_clone().expect("Error cloning stream");
-        let no_partner = no_partner.clone();
 
         let h = thread::spawn(move|| {
             loop {
@@ -151,6 +156,7 @@ fn choose_chat_partner(stream: TcpStream,
             }
         });
 
+        // Return partner
         return h.join().unwrap();
     }
 }
@@ -164,6 +170,7 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
         let mut guard = chat_map.lock().expect("Error locking chatmap");
 
         {
+            // Not allowed to select someone you have blocked
             let my_client_info = guard.get(&username).unwrap();
             if my_client_info.blocked_users.contains(&partner) {
                 return false;
@@ -176,6 +183,8 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
                     && !clientinfo.blocked_users.contains(&username.to_string())
                     && (clientinfo.partner == None 
                         || clientinfo.partner == Some(username.to_string())) {
+
+                    // Set their partner to you
                     clientinfo.partner = Some(username.to_string());
                     success = true;
                 } else {
@@ -187,6 +196,7 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
     }
 
     if success {
+        // Set your partner to them
         let mut guard = chat_map.lock().expect("Error locking chatmap");
         println!("Assigning partner {} to {}", partner, username);
         guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
@@ -209,6 +219,7 @@ fn chat(stream: TcpStream,
         let chat_map = chat_map.clone();
         let stream = stream.try_clone().expect("Error cloning stream");
         let reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
+        
         thread::spawn(move|| {
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
