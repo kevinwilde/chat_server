@@ -158,7 +158,7 @@ fn choose_chat_partner(stream: TcpStream,
             }
         });
     }
-    
+
     // Return partner
     return handle.join().unwrap();
 }
@@ -167,42 +167,41 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
                       username: String, 
                       partner: String) -> bool {
 
-    let success: bool;
+    // Can't choose yourself as partner
+    if &username[..] == &partner[..] {
+        return false;
+    }
+
+    let mut guard = chat_map.lock().expect("Error locking chatmap");
+
     {
-        let mut guard = chat_map.lock().expect("Error locking chatmap");
-
-        {
-            // Not allowed to select someone you have blocked
-            let my_client_info = guard.get(&username).unwrap();
-            if my_client_info.blocked_users.contains(&partner) {
-                return false;
-            }
+        // Not allowed to select someone you have blocked
+        let my_client_info = guard.get(&username).unwrap();
+        if my_client_info.blocked_users.contains(&partner) {
+            return false;
         }
-        
-        match guard.get_mut(&partner) {
-            Some(clientinfo) => {
-                if &partner[..] != &username[..]
-                    && !clientinfo.blocked_users.contains(&username.to_string())
-                    && (clientinfo.partner == None 
-                        || clientinfo.partner == Some(username.to_string())) {
+    }
 
-                    // Set their partner to you
-                    clientinfo.partner = Some(username.to_string());
-                    success = true;
-                } else {
-                    success = false;
-                }
-            },
-            None => success = false
+    let success: bool;    
+
+    if let Some(clientinfo) = guard.get(&partner) {
+        // If they haven't blocked you && they don't already have a partner
+        if !clientinfo.blocked_users.contains(&username.to_string())
+            && clientinfo.partner == None {
+            success = true;
+        } else {
+            success = false;
         }
+    } else {
+        success = false
     }
 
     if success {
-        // Set your partner to them
-        let mut guard = chat_map.lock().expect("Error locking chatmap");
-        println!("Assigning partner {} to {}", partner, username);
+        println!("Assigning partners: {} and {}", username, partner);
         guard.get_mut(&username).unwrap().partner = Some(partner.to_string());
+        guard.get_mut(&partner).unwrap().partner = Some(username.to_string());
     }
+    
     success
 }
 
@@ -347,18 +346,6 @@ mod client_tests {
     }
 
     #[test]
-    fn try_select_partner_test_succes_3() {
-        let cm = Arc::new(Mutex::new(fixture()));
-
-        // Success: a and b become partners
-        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
-
-        // Success: b can choose a when they are already partners
-        //   (This allows someone to confirm a chat request)
-        assert!(try_select_partner(&cm, "b".to_string(), "a".to_string()));
-    }
-
-    #[test]
     fn try_select_partner_test_fail_1() {
         let cm = Arc::new(Mutex::new(fixture()));
 
@@ -376,12 +363,31 @@ mod client_tests {
         // Success: a and b become partners
         assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
 
+        // Fail: a already has partner
+        assert!(!try_select_partner(&cm, "b".to_string(), "a".to_string()));
+    }
+
+    #[test]
+    fn try_select_partner_test_fail_3() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Success: a and b become partners
+        assert!(try_select_partner(&cm, "a".to_string(), "b".to_string()));
+
         // Fail: Can't choose self as partner
         assert!(!try_select_partner(&cm, "c".to_string(), "c".to_string()));
     }
 
     #[test]
-    fn try_select_partner_test_fail_3() {
+    fn try_select_partner_test_fail_4() {
+        let cm = Arc::new(Mutex::new(fixture()));
+
+        // Fail: f not in chatmap
+        assert!(!try_select_partner(&cm, "a".to_string(), "f".to_string()));
+    }
+
+    #[test]
+    fn try_select_partner_test_fail_5() {
         let cm = Arc::new(Mutex::new(fixture()));
 
         // Success: a and b become partners
