@@ -84,6 +84,8 @@ fn choose_chat_partner(stream: TcpStream,
                        username: String, 
                        chat_map: &Arc<Mutex<ChatMap>>) -> String {
     
+    // Used to notify you if someone else starts chat with you
+    // To begin, you have no partner
     let no_partner = Arc::new(Mutex::new(true));
 
     // Allow you to start a chat
@@ -97,6 +99,7 @@ fn choose_chat_partner(stream: TcpStream,
 
             loop {
                 {
+                    // Break if other thread has set no_partner to false
                     let guard = no_partner.lock().unwrap();
                     if !*guard {
                         break;
@@ -142,18 +145,18 @@ fn choose_chat_partner(stream: TcpStream,
             loop {
                 let guard = chat_map.lock().expect("Error locking chatmap");
 
-                match &guard.get(&username).unwrap().partner {
-                    &Some(ref p) => {
-                        println!("{} chatting with {}", &username, p);
-                        let chatting_msg = "Now chatting with ".to_string() + p + ". Press enter to start chatting.\n";
-                        stream.write(&chatting_msg.into_bytes()).expect("Error writing to stream");
-                        {
-                            let mut guard = no_partner.lock().unwrap();
-                            *guard = false;
-                        }
-                        return p.to_string();
+                if let &Some(ref p) = &guard.get(&username).unwrap().partner {
+                    println!("{} chatting with {}", &username, p);
+                    
+                    let chatting_msg = "Now chatting with ".to_string() 
+                                        + p + ". Press enter to start chatting.\n";
+                    stream.write(&chatting_msg.into_bytes()).expect("Error writing to stream");
+                    
+                    {
+                        let mut guard = no_partner.lock().unwrap();
+                        *guard = false;
                     }
-                    &None => continue
+                    return p.to_string();
                 }
             }
         });
@@ -233,29 +236,26 @@ fn chat(stream: TcpStream,
                 if line.len() > 0 {
                     if &line[0..1] == "/" {
                         match parse_command(msg.content().to_string()) {
+                            
                             Command::Quit => {
                                 println!("Quit command");
+                            
                                 {
                                     let mut guard = chat_map.lock().expect("Error locking chatmap");
                                     quit_conversation(&mut *guard, username.to_string());
                                 }
 
-                                let quit_msg = "I have quit out of the conversation. Type /q to quit.";
-                                
-                                let msg = Message::new(time::now().asctime().to_string(), 
-                                                           username.to_string(), 
-                                                           partner.to_string(), 
-                                                           quit_msg.to_string());
-                                
-                                sender_to_router.send(msg).expect("Error sending message");
+                                send_quit_message(username.to_string(), partner.to_string(), &sender_to_router);
                                 
                                 partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
                                     username.to_string(), &chat_map);
                             },
+
                             Command::DisplayAvailable => {
                                 display_available(stream.try_clone().expect("Error cloning stream"), 
                                     &chat_map, username.to_string());
                             },
+
                             Command::Block => {
                                 {
                                     let mut guard = chat_map.lock().expect("Error locking chatmap");
@@ -264,18 +264,12 @@ fn chat(stream: TcpStream,
                                     client_info.blocked_users.push(partner.to_string());
                                 }
 
-                                let quit_msg = "I have blocked you and quit out of the conversation. Type /q to quit.";
-                                
-                                let msg = Message::new(time::now().asctime().to_string(), 
-                                                           username.to_string(), 
-                                                           partner.to_string(), 
-                                                           quit_msg.to_string());
-                                
-                                sender_to_router.send(msg).expect("Error sending message");
+                                send_block_message(username.to_string(), partner.to_string(), &sender_to_router);
                                 
                                 partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
                                     username.to_string(), &chat_map);
                             },
+
                             Command::Unrecognized => println!("Unrecognized command")
                         }
                     } else {
@@ -308,6 +302,32 @@ fn chat(stream: TcpStream,
             }
         });
     }
+}
+
+fn send_quit_message(username: String, 
+                     partner: String, 
+                     sender_to_router: &Sender<Message>) {
+
+    let quit_msg = "I have quit out of the conversation. \
+                    Type /q to quit.".to_string();
+                                
+    let msg = Message::new(time::now().asctime().to_string(), 
+                           username, partner, quit_msg);
+    
+    sender_to_router.send(msg).expect("Error sending message");
+}
+
+fn send_block_message(username: String, 
+                      partner: String, 
+                      sender_to_router: &Sender<Message>) {
+
+    let block_msg = "I have blocked you and quit out of the conversation. \
+                     Type /q to quit.".to_string();
+                                
+    let msg = Message::new(time::now().asctime().to_string(), 
+                           username, partner, block_msg);
+    
+    sender_to_router.send(msg).expect("Error sending message");
 }
 
 fn receive_message(stream: TcpStream, msg: Message) {
