@@ -116,18 +116,20 @@ fn choose_chat_partner(stream: TcpStream,
                         partner = partner.trim().to_string();
 
                         if try_select_partner(&chat_map, username.to_string(), partner.to_string()) {
-                            return partner;
+                            // If we successfully choose partner, 
+                            //   break out of this loop and end this thread.
+                            //   Other thread will find that we have partner now
+                            //   and will return that partner
+                            break;
                         }
                     },
                     Err(e) => println!("{}", e)
                 }
             }
-
-            // Value returned from this thread is unused
-            // Rust compiler complains if we don't return a String
-            return "Unused".to_string();
         });
     }
+
+    let handle;
     
     // Check if someone else has started a chat with you
     {
@@ -136,7 +138,7 @@ fn choose_chat_partner(stream: TcpStream,
         let username = username.to_string();
         let mut stream = stream.try_clone().expect("Error cloning stream");
 
-        let h = thread::spawn(move|| {
+        handle = thread::spawn(move|| {
             loop {
                 let guard = chat_map.lock().expect("Error locking chatmap");
 
@@ -155,10 +157,10 @@ fn choose_chat_partner(stream: TcpStream,
                 }
             }
         });
-
-        // Return partner
-        return h.join().unwrap();
     }
+    
+    // Return partner
+    return handle.join().unwrap();
 }
 
 fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>, 
