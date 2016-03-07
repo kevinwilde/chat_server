@@ -30,7 +30,7 @@ pub fn create_client(stream: TcpStream,
     loop {
         match reader.read_line(&mut username) {
             Ok(_) => {
-                username = username.trim().to_string();
+                username = username.trim().to_string().to_lowercase();
 
                 let mut guard = chat_map.lock().expect("Error locking chatmap");
                 
@@ -118,7 +118,7 @@ fn choose_chat_partner(stream: TcpStream,
                 
                 match reader.read_line(&mut partner) {
                     Ok(_) => {
-                        partner = partner.trim().to_string();
+                        partner = partner.trim().to_string().to_lowercase();
 
                         if try_select_partner(&chat_map, username.to_string(), partner.to_string()) {
                             // If we successfully choose partner, 
