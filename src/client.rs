@@ -1,5 +1,5 @@
 use std::io::{BufRead, BufReader, Write};
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::thread;
@@ -236,42 +236,9 @@ fn chat(stream: TcpStream,
                                        line.to_string());
                 if line.len() > 0 {
                     if &line[0..1] == "/" {
-                        match parse_command(msg.content().to_string()) {
-                            
-                            Command::Quit => {
-                                println!("Quit command");
-                            
-                                {
-                                    let mut guard = chat_map.lock().expect("Error locking chatmap");
-                                    quit_conversation(&mut *guard, username.to_string());
-                                }
-
-                                send_quit_message(username.to_string(), partner.to_string(), &sender_to_router);
-                                
-                                partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
-                                    username.to_string(), &chat_map);
-                            },
-
-                            Command::DisplayAvailable => {
-                                display_available(stream.try_clone().expect("Error cloning stream"), 
-                                    &chat_map, username.to_string());
-                            },
-
-                            Command::Block => {
-                                {
-                                    let mut guard = chat_map.lock().expect("Error locking chatmap");
-                                    quit_conversation(&mut *guard, username.to_string());
-                                    let mut client_info = guard.get_mut(&username).unwrap();
-                                    client_info.blocked_users.push(partner.to_string());
-                                }
-
-                                send_block_message(username.to_string(), partner.to_string(), &sender_to_router);
-                                
-                                partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
-                                    username.to_string(), &chat_map);
-                            },
-
-                            Command::Unrecognized => println!("Unrecognized command")
+                        if let Some(p) = handle_command(stream.try_clone().expect("Error cloning stream"), 
+                            &chat_map, username.to_string(), partner.to_string(), msg, &sender_to_router) {
+                            partner = p;
                         }
                     } else {
                         sender_to_router.send(msg).expect("Error sending message");
@@ -298,11 +265,78 @@ fn chat(stream: TcpStream,
                     Err(TryRecvError::Empty) => continue,
 
                     Err(TryRecvError::Disconnected) => 
-                        panic!("User {} disconnected from router", username)
+                        println!("User {} disconnected from router", username)
                 }
             }
         });
     }
+}
+
+fn handle_command(stream: TcpStream, 
+                  chat_map: &Arc<Mutex<ChatMap>>, 
+                  username: String,
+                  partner: String,
+                  msg: Message,
+                  sender_to_router: &Sender<Message>) -> Option<String> {
+
+    match parse_command(msg.content().to_string()) {
+                            
+        Command::Quit => {
+            println!("Quit command");
+        
+            {
+                let mut guard = chat_map.lock().expect("Error locking chatmap");
+                quit_conversation(&mut *guard, username.to_string());
+            }
+
+            send_quit_message(username.to_string(), partner.to_string(), &sender_to_router);
+            
+            Some(choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
+                username.to_string(), &chat_map))
+        },
+
+        Command::DisplayAvailable => {
+            display_available(stream.try_clone().expect("Error cloning stream"), 
+                &chat_map, username.to_string());
+            None
+        },
+
+        Command::Block => {
+            {
+                let mut guard = chat_map.lock().expect("Error locking chatmap");
+                quit_conversation(&mut *guard, username.to_string());
+                let mut client_info = guard.get_mut(&username).unwrap();
+                client_info.blocked_users.push(partner.to_string());
+            }
+
+            send_block_message(username.to_string(), partner.to_string(), &sender_to_router);
+            
+            Some(choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
+                username.to_string(), &chat_map))
+        },
+
+        Command::Logoff => {
+            println!("Logging off {}", username);
+
+            {
+                let mut guard = chat_map.lock().expect("Error locking chatmap");
+                quit_conversation(&mut *guard, username.to_string());
+                guard.remove(&username).expect("Error removing from chatmap");
+            }
+
+            send_quit_message(username.to_string(), partner.to_string(), &sender_to_router);
+
+            stream.shutdown(Shutdown::Both).expect("Error shutting down stream");
+
+            None
+        }
+
+        Command::Unrecognized => {
+            println!("Unrecognized command");
+            None
+        }
+    }
+
 }
 
 fn send_quit_message(username: String, 
