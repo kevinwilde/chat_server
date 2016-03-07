@@ -21,6 +21,7 @@ impl PartialEq for Command {
 }
 
 pub fn parse_command(cmd: String) -> Command {
+    let cmd = cmd.to_lowercase();
     if cmd == "/q" || cmd == "/quit" {
         Command::Quit
     } else if cmd == "/list" {
