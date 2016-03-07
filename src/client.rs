@@ -30,6 +30,7 @@ pub fn create_client(stream: TcpStream,
     loop {
         match reader.read_line(&mut username) {
             Ok(_) => {
+                // Usernames converted to lowercase to be case insensitive
                 username = username.trim().to_string().to_lowercase();
 
                 let mut guard = chat_map.lock().expect("Error locking chatmap");
