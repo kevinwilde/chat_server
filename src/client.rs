@@ -79,6 +79,9 @@ fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username
     for user in avail {
         stream.write(&(user + "\n").to_string().into_bytes()).expect("Error writing to stream");
     }
+
+    let select_msg = "Select who you want to chat with:\n".to_string();
+    stream.write(&select_msg.into_bytes()).expect("Error writing to stream");
 }
 
 fn choose_chat_partner(stream: TcpStream, 
@@ -94,7 +97,7 @@ fn choose_chat_partner(stream: TcpStream,
         let chat_map = chat_map.clone();
         let no_partner = no_partner.clone();
         let username = username.to_string();
-        let mut stream = stream.try_clone().expect("Error cloning stream");
+        let stream = stream.try_clone().expect("Error cloning stream");
 
         thread::spawn(move|| {
 
@@ -106,11 +109,9 @@ fn choose_chat_partner(stream: TcpStream,
                         break;
                     }
                 }
+
                 display_available(stream.try_clone().expect("Error cloning stream"), 
                     &chat_map, username.to_string());
-                
-                let select_msg = "Select who you want to chat with:\n".to_string();
-                stream.write(&select_msg.into_bytes()).expect("Error writing to stream");
                 
                 let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
                 let mut partner = "".to_string();
@@ -140,10 +141,32 @@ fn choose_chat_partner(stream: TcpStream,
         let chat_map = chat_map.clone();
         let no_partner = no_partner.clone();
         let username = username.to_string();
-        let mut stream = stream.try_clone().expect("Error cloning stream");
+        let mut stream = stream;
 
         handle = thread::spawn(move|| {
+
+            let mut n;
+
+            {
+                let guard = chat_map.lock().expect("Error locking chatmap");
+                n = available_users(&*guard, username.to_string()).len();
+            }
+
             loop {
+                let new_n;
+
+                {
+                    let guard = chat_map.lock().expect("Error locking chatmap");
+                    new_n = available_users(&*guard, username.to_string()).len();
+                }
+
+                // Re-display available users if it changes
+                if n != new_n {
+                    display_available(stream.try_clone().expect("Error cloning stream"), 
+                        &chat_map, username.to_string());
+                    n = new_n;
+                }
+
                 let guard = chat_map.lock().expect("Error locking chatmap");
 
                 if let &Some(ref p) = &guard.get(&username).unwrap().partner {
