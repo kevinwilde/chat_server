@@ -266,8 +266,10 @@ fn chat(stream: TcpStream,
 
                     Err(TryRecvError::Empty) => continue,
 
-                    Err(TryRecvError::Disconnected) => 
-                        println!("User {} disconnected from router", username)
+                    Err(TryRecvError::Disconnected) => {
+                        println!("User {} disconnected from router", username);
+                        break;
+                    }
                 }
             }
         });
@@ -326,7 +328,7 @@ fn handle_command(stream: TcpStream,
                 guard.remove(&username).expect("Error removing from chatmap");
             }
 
-            send_quit_message(username.to_string(), partner.to_string(), &sndr_to_router);
+            send_logoff_message(username.to_string(), partner.to_string(), &sndr_to_router);
 
             stream.shutdown(Shutdown::Both).expect("Error shutting down stream");
 
@@ -363,6 +365,19 @@ fn send_block_message(username: String,
                                 
     let msg = Message::new(time::now().asctime().to_string(), 
                            username, partner, block_msg);
+    
+    sndr_to_router.send(msg).expect("Error sending message");
+}
+
+fn send_logoff_message(username: String, 
+                      partner: String, 
+                      sndr_to_router: &Sender<Message>) {
+
+    let logoff_msg = "I have logged off. \
+                      Type /q to quit.".to_string();
+                                
+    let msg = Message::new(time::now().asctime().to_string(), 
+                           username, partner, logoff_msg);
     
     sndr_to_router.send(msg).expect("Error sending message");
 }
