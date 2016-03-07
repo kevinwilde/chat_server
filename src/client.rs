@@ -14,7 +14,7 @@ use command::parse_command;
 extern crate time;
 
 pub fn create_client(stream: TcpStream, 
-                     sender_to_router: Sender<Message>, 
+                     sndr_to_router: Sender<Message>, 
                      chat_map: &Arc<Mutex<ChatMap>>) {
 
     println!("New client");
@@ -25,7 +25,7 @@ pub fn create_client(stream: TcpStream,
     
     let mut reader = BufReader::new(stream.try_clone().expect("Error cloning stream"));
     let mut username = "".to_string();
-    let (sender_to_client, receiver_from_router) = channel();
+    let (sndr_to_client, rcvr_from_router) = channel();
 
     loop {
         match reader.read_line(&mut username) {
@@ -38,7 +38,7 @@ pub fn create_client(stream: TcpStream,
 
                     let client_info = ClientInfo{
                         partner: None, 
-                        sender_to_client: sender_to_client,
+                        sender_to_client: sndr_to_client,
                         blocked_users: Vec::new(),
                     };
 
@@ -60,7 +60,7 @@ pub fn create_client(stream: TcpStream,
     let partner = choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
         username.to_string(), chat_map);
 
-    chat(stream, username, partner, sender_to_router, receiver_from_router, chat_map);
+    chat(stream, username, partner, sndr_to_router, rcvr_from_router, chat_map);
 }
 
 fn display_available(stream: TcpStream, chat_map: &Arc<Mutex<ChatMap>>, username: String) {
@@ -212,8 +212,8 @@ fn try_select_partner(chat_map: &Arc<Mutex<ChatMap>>,
 fn chat(stream: TcpStream, 
         username: String, 
         partner: String, 
-        sender_to_router: Sender<Message>, 
-        receiver_from_router: Receiver<Message>,
+        sndr_to_router: Sender<Message>, 
+        rcvr_from_router: Receiver<Message>,
         chat_map: &Arc<Mutex<ChatMap>>) {
 
     let mut partner = partner.to_string();
@@ -237,11 +237,13 @@ fn chat(stream: TcpStream,
                 if line.len() > 0 {
                     if &line[0..1] == "/" {
                         if let Some(p) = handle_command(stream.try_clone().expect("Error cloning stream"), 
-                            &chat_map, username.to_string(), partner.to_string(), msg, &sender_to_router) {
+                            &chat_map, username.to_string(), partner.to_string(), 
+                            msg, &sndr_to_router) {
+                            
                             partner = p;
                         }
                     } else {
-                        sender_to_router.send(msg).expect("Error sending message");
+                        sndr_to_router.send(msg).expect("Error sending message");
                     }
                 }
             }
@@ -254,7 +256,7 @@ fn chat(stream: TcpStream,
         thread::spawn(move|| {
             loop {
                 let stream = stream.try_clone().expect("Error cloning stream");
-                match receiver_from_router.try_recv() {
+                match rcvr_from_router.try_recv() {
                     Ok(msg) => {
                         println!("User {} received message: {}", 
                             &username, msg.content());
@@ -277,7 +279,7 @@ fn handle_command(stream: TcpStream,
                   username: String,
                   partner: String,
                   msg: Message,
-                  sender_to_router: &Sender<Message>) -> Option<String> {
+                  sndr_to_router: &Sender<Message>) -> Option<String> {
 
     match parse_command(msg.content().to_string()) {
                             
@@ -289,7 +291,7 @@ fn handle_command(stream: TcpStream,
                 quit_conversation(&mut *guard, username.to_string());
             }
 
-            send_quit_message(username.to_string(), partner.to_string(), &sender_to_router);
+            send_quit_message(username.to_string(), partner.to_string(), &sndr_to_router);
             
             Some(choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
                 username.to_string(), &chat_map))
@@ -309,7 +311,7 @@ fn handle_command(stream: TcpStream,
                 client_info.blocked_users.push(partner.to_string());
             }
 
-            send_block_message(username.to_string(), partner.to_string(), &sender_to_router);
+            send_block_message(username.to_string(), partner.to_string(), &sndr_to_router);
             
             Some(choose_chat_partner(stream.try_clone().expect("Error cloning stream"), 
                 username.to_string(), &chat_map))
@@ -324,7 +326,7 @@ fn handle_command(stream: TcpStream,
                 guard.remove(&username).expect("Error removing from chatmap");
             }
 
-            send_quit_message(username.to_string(), partner.to_string(), &sender_to_router);
+            send_quit_message(username.to_string(), partner.to_string(), &sndr_to_router);
 
             stream.shutdown(Shutdown::Both).expect("Error shutting down stream");
 
@@ -341,7 +343,7 @@ fn handle_command(stream: TcpStream,
 
 fn send_quit_message(username: String, 
                      partner: String, 
-                     sender_to_router: &Sender<Message>) {
+                     sndr_to_router: &Sender<Message>) {
 
     let quit_msg = "I have quit out of the conversation. \
                     Type /q to quit.".to_string();
@@ -349,12 +351,12 @@ fn send_quit_message(username: String,
     let msg = Message::new(time::now().asctime().to_string(), 
                            username, partner, quit_msg);
     
-    sender_to_router.send(msg).expect("Error sending message");
+    sndr_to_router.send(msg).expect("Error sending message");
 }
 
 fn send_block_message(username: String, 
                       partner: String, 
-                      sender_to_router: &Sender<Message>) {
+                      sndr_to_router: &Sender<Message>) {
 
     let block_msg = "I have blocked you and quit out of the conversation. \
                      Type /q to quit.".to_string();
@@ -362,7 +364,7 @@ fn send_block_message(username: String,
     let msg = Message::new(time::now().asctime().to_string(), 
                            username, partner, block_msg);
     
-    sender_to_router.send(msg).expect("Error sending message");
+    sndr_to_router.send(msg).expect("Error sending message");
 }
 
 fn receive_message(stream: TcpStream, msg: Message) {

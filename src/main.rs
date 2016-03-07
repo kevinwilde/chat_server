@@ -19,14 +19,14 @@ mod message;
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Error binding listener");
     let chat_map: Arc<Mutex<ChatMap>> = Arc::new(Mutex::new(ChatMap::new()));
-    let (sender_to_router, receiver_from_clients) = channel();
+    let (sndr_to_router, rcvr_from_clients) = channel();
 
     //Router thread
     {
         let chat_map = chat_map.clone();
         thread::spawn(move|| {
             loop {
-                let msg: Message = receiver_from_clients.recv().expect("Error receiving message");
+                let msg: Message = rcvr_from_clients.recv().expect("Error receiving message");
                 
                 println!("Router received message date {}, from {}, to {}, content {}", 
                     msg.date(), msg.from(), msg.to(), msg.content());
@@ -51,9 +51,9 @@ fn main() {
         match stream {
             Ok(stream) => {
                 let chat_map = chat_map.clone();
-                let sender_to_router = sender_to_router.clone();
+                let sndr_to_router = sndr_to_router.clone();
                 thread::spawn(move|| {
-                    client::create_client(stream, sender_to_router, &chat_map);
+                    client::create_client(stream, sndr_to_router, &chat_map);
                 });
             }
             Err(e) => {
