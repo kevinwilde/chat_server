@@ -1,4 +1,4 @@
-# Smazy
+# [Chat Server](https://kevinwilde.github.io/chat_server)
 
 **What do we want to build?**
 
