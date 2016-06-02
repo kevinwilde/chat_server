@@ -15,17 +15,17 @@ impl Message {
         }
     }
 
-    pub fn date(&self) -> &String {
-        &self.date
-    }
+    // pub fn date(&self) -> &String {
+    //     &self.date
+    // }
 
     pub fn from(&self) -> &String {
         &self.from
     }
 
-    pub fn to(&self) -> &String {
-        &self.to
-    }
+    // pub fn to(&self) -> &String {
+    //     &self.to
+    // }
 
     pub fn content(&self) -> &String {
         &self.content

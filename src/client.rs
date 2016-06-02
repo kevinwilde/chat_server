@@ -1,7 +1,7 @@
 use std::io::{BufRead, BufReader, Write};
 use std::net::{Shutdown, TcpStream};
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
 use chatmap::{ChatMap, ClientInfo};
@@ -151,6 +151,7 @@ fn choose_chat_partner(stream: TcpStream,
                 n = available_users(&*guard, username.to_string()).len();
             }
 
+            // TODO: Figure out how to use condvar to avoid busy checking
             loop {
                 let new_n;
 
@@ -285,7 +286,7 @@ fn chat(stream: TcpStream,
         thread::spawn(move|| {
             loop {
                 let stream = clone_stream(&stream);
-                match rcvr.try_recv() {
+                match rcvr.recv() {
                     Ok(msg) => {
                         println!("User {} received message: {}", 
                             &username, msg.content());
@@ -293,10 +294,8 @@ fn chat(stream: TcpStream,
                         receive_message(stream, msg);
                     },
 
-                    Err(TryRecvError::Empty) => continue,
-
-                    Err(TryRecvError::Disconnected) => {
-                        println!("User {} disconnected from router", username);
+                    Err(e) => {
+                        println!("Error receiving message {}", e);
                         break;
                     }
                 }
