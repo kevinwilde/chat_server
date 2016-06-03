@@ -1,17 +1,17 @@
 pub struct Message {
     date: String,
     from: String,
-    to: String,
-    content: String
+    room_id: usize,
+    content: String,
 }
 
 impl Message {
-    pub fn new(date: String, from: String, to: String, content: String) -> Message {
+    pub fn new(date: String, from: String, room_id: usize, content: String) -> Self {
         Message {
             date: date,
             from: from,
-            to: to,
-            content: content
+            room_id: room_id,
+            content: content,
         }
     }
 
@@ -23,7 +23,7 @@ impl Message {
         &self.from
     }
 
-    // pub fn to(&self) -> &String {
+    // pub fn to(&self) -> usize {
     //     &self.to
     // }
 

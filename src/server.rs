@@ -1,3 +1,6 @@
+use std::net::TcpStream;
+use std::sync::mpsc::{channel, Receiver, Sender};
+
 use message::Message;
 use roommap::RoomMap;
 use usermap::UserMap;
@@ -8,19 +11,30 @@ pub struct Server {
 }
 
 impl Server {
-    fn add_user(&self) {
+    pub fn new() -> Self {
+        Server {
+            users: UserMap::new(),
+            rooms: RoomMap::new(),
+        }
+    }
+
+    pub fn add_user(&self, user: String) -> bool {
         unimplemented!();
     }
 
-    fn send_message(&self, msg) {
+    pub fn send_message(&self, msg: Message) {
         unimplemented!();
     }
 
-    fn join_room(&self, user) {
+    pub fn join_room(&self, user: String) {
         unimplemented!();
     }
 
-    fn leave_room(&self, user) {
+    pub fn leave_room(&self, user: String) {
+        unimplemented!();
+    }
+
+    pub fn display_rooms(&self, stream: TcpStream) {
         unimplemented!();
     }
 }

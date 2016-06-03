@@ -4,7 +4,7 @@ use std::sync::mpsc::Sender;
 
 struct Room {
     name: String,
-    members: Vec<Sender>,
+    members: Vec<Sender<String>>,
 }
 
 // Key: room id
