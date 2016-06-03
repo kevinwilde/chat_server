@@ -23,9 +23,9 @@ impl Message {
         &self.from
     }
 
-    // pub fn to(&self) -> usize {
-    //     &self.to
-    // }
+    pub fn room_id(&self) -> usize {
+        self.room_id
+    }
 
     pub fn content(&self) -> &String {
         &self.content
