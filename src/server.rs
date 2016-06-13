@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -29,24 +30,27 @@ impl Server {
     pub fn send_message(&self, msg: Message) {
         let members = self.rooms.get(&msg.room_id()).unwrap().members();
         let output = msg.from().to_string() + ": " + msg.content();
-        for sndr in members {
+        for (_, sndr) in members {
             sndr.send(output.to_string()).unwrap();
         }
     }
 
-    pub fn join_room(&self, user: String) {
-        unimplemented!();
+    pub fn join_room(&mut self, room_id: usize, user: String, sndr: Sender<String>) {
+        self.rooms.get_mut(&room_id).unwrap().add_member(user, sndr);
     }
 
     pub fn create_room(&self) {
         unimplemented!();
     }
 
-    pub fn leave_room(&self, user: String) {
-        unimplemented!();
+    pub fn leave_room(&mut self, room_id: usize, user: String) {
+        self.rooms.get_mut(&room_id).unwrap().remove_member(user);
     }
 
     pub fn display_rooms(&self, stream: TcpStream) {
-        unimplemented!();
+        let mut stream = stream;
+        for (room_id, room) in &self.rooms {
+            write!(stream, "{}: {}", room_id, room.name()).unwrap();
+        }
     }
 }
