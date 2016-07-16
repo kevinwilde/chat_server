@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 
-struct Room {
+pub struct Room {
     name: String,
     members: HashMap<String, Sender<String>>,
 }
@@ -28,6 +28,10 @@ impl Room {
 
     pub fn remove_member(&mut self, user: String) {
         self.members.remove(&user);
+    }
+
+    pub fn size(&self) -> usize {
+        self.members.len()
     }
 }
 

@@ -4,12 +4,10 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
-// use chatmap::{ChatMap, ClientInfo};
 // use command::Command;
 use message::Message;
 use server::Server;
 
-// use chatmap::{available_users, is_valid_username, quit_conversation};
 // use command::parse_command;
 
 extern crate time;

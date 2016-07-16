@@ -3,7 +3,7 @@ use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use message::Message;
-use roommap::RoomMap;
+use roommap::{Room, RoomMap};
 use usermap::UserMap;
 
 pub struct Server {
@@ -41,8 +41,10 @@ impl Server {
     }
 
     // return room_id
-    pub fn create_room(&self, room_name: String) -> usize {
-        unimplemented!();
+    pub fn create_room(&mut self, room_name: String) -> usize {
+        let room_id = self.rooms.len() + 1;
+        self.rooms.insert(room_id, Room::new(room_name));
+        room_id
     }
 
     pub fn leave_room(&mut self, room_id: usize, user: String) {

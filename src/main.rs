@@ -1,8 +1,3 @@
-// Christopher Chen
-// Alex Cohen
-// Thornton Uhl
-// Kevin Wilde
-
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;

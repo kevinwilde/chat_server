@@ -15,9 +15,9 @@ impl Message {
         }
     }
 
-    // pub fn date(&self) -> &String {
-    //     &self.date
-    // }
+    pub fn date(&self) -> &String {
+        &self.date
+    }
 
     pub fn from(&self) -> &String {
         &self.from
