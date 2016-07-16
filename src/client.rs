@@ -26,14 +26,14 @@ fn welcome_user(stream: TcpStream) {
     let mut stream = stream;
     let welcome_msg = "Welcome to Smazy\nPlease enter a username:\n".to_string();
     stream.write(&welcome_msg.into_bytes()).expect("Error writing to stream");
-    // stream.flush().unwrap();
+    stream.flush().unwrap();
 }
 
 fn display_instructions(stream: TcpStream) {
     let mut stream = stream;
     let instructions = "Instructions:\nThis will be filled in later\n".to_string();
     stream.write(&instructions.into_bytes()).expect("Error writing to stream");
-    // stream.flush().unwrap();
+    stream.flush().unwrap();
 }
 
 fn choose_username(stream: TcpStream, server: &Arc<Mutex<Server>>) -> String {
@@ -62,7 +62,10 @@ fn choose_username(stream: TcpStream, server: &Arc<Mutex<Server>>) -> String {
 }
 
 fn choose_chatroom(stream: TcpStream, server: &Arc<Mutex<Server>>, sndr: Sender<String>) -> usize {
+    // Display rooms and give option to create new room
     server.lock().unwrap().display_rooms(clone_stream(&stream));
+    // If create new room, call server.create_room
+    // Call server.join_room
     unimplemented!();
 }
 

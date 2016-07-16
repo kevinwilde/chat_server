@@ -19,6 +19,7 @@ impl Server {
         }
     }
 
+    // return boolean indicating success/failure
     pub fn add_user(&mut self, user: String) -> bool {
         if !self.users.contains_key(&user) {
             self.users.insert(user, 0);
@@ -39,7 +40,8 @@ impl Server {
         self.rooms.get_mut(&room_id).unwrap().add_member(user, sndr);
     }
 
-    pub fn create_room(&self) {
+    // return room_id
+    pub fn create_room(&self, room_name: String) -> usize {
         unimplemented!();
     }
 

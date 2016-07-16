@@ -23,12 +23,14 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
+            
             Ok(stream) => {
                 let server = server.clone();
                 thread::spawn(move|| {
                     client::create_client(stream, &server);
                 });
             }
+            
             Err(e) => {
                 println!("{}", e);
             }
