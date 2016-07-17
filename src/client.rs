@@ -95,6 +95,7 @@ fn choose_chatroom(stream: TcpStream, server: &Arc<Mutex<Server>>, username: Str
                 }
                 else {
                     let msg = "Try again\n".to_string();
+                    choice = "".to_string();
                     stream.write(&msg.into_bytes()).expect("Error writing to stream");
                 }
 
@@ -148,9 +149,9 @@ fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
     }
 }
 
-
 fn receive_message(stream: TcpStream, msg: String) {
     let mut stream = stream;
+    let msg = msg + "\n";
     stream.write(&msg.into_bytes()).expect("Error writing to stream");
 }
 

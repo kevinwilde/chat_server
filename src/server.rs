@@ -1,6 +1,6 @@
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::Sender;
 
 use message::Message;
 use roommap::{Room, RoomMap};
@@ -19,38 +19,47 @@ impl Server {
         }
     }
 
-    // return boolean indicating success/failure
-    pub fn add_user(&mut self, user: String) -> bool {
-        if !self.users.contains_key(&user) {
-            self.users.insert(user, 0);
+    /// Add user to server
+    /// Fails if a user with the same name already exists
+    /// Return boolean indicating success/failure
+    pub fn add_user(&mut self, name: String) -> bool {
+        if !self.users.contains_key(&name) {
+            self.users.insert(name, 0);
             return true;
         }
         false
     }
 
+    /// Send message to all users in the room that the sender is in
     pub fn send_message(&self, msg: Message) {
         let members = self.rooms.get(&msg.room_id()).unwrap().members();
         let output = msg.from().to_string() + ": " + msg.content();
-        for (_, sndr) in members {
-            sndr.send(output.to_string()).unwrap();
+        for (name, sndr) in members {
+            if name != msg.from() {
+                sndr.send(output.to_string()).unwrap();
+            }
         }
     }
 
+    /// Add a user to a chatroom
     pub fn join_room(&mut self, room_id: usize, user: String, sndr: Sender<String>) {
         self.rooms.get_mut(&room_id).unwrap().add_member(user, sndr);
     }
 
-    // return room_id
+    /// Create a new chatroom
+    /// Return room_id
     pub fn create_room(&mut self, room_name: String) -> usize {
         let room_id = self.rooms.len() + 1;
         self.rooms.insert(room_id, Room::new(room_name));
         room_id
     }
 
+    /// Remove a user from a chatroom
     pub fn leave_room(&mut self, room_id: usize, user: String) {
         self.rooms.get_mut(&room_id).unwrap().remove_member(user);
     }
 
+    /// Write a list of the available chatrooms to a stream
     pub fn display_rooms(&self, stream: TcpStream) {
         let mut stream = stream;
         for (room_id, room) in &self.rooms {
