@@ -14,17 +14,10 @@ extern crate time;
 
 pub fn create_client(stream: TcpStream, server: &Arc<Mutex<Server>>) {
     println!("New client");    
-    welcome_user(clone_stream(&stream));
+    Server::welcome_user(clone_stream(&stream));
     let username = choose_username(clone_stream(&stream), server);
     display_instructions(clone_stream(&stream));
     chat(stream, server, username);
-}
-
-fn welcome_user(stream: TcpStream) {
-    let mut stream = stream;
-    let welcome_msg = "Welcome to Smazy\nPlease enter a username:\n".to_string();
-    stream.write(&welcome_msg.into_bytes()).expect("Error writing to stream");
-    stream.flush().unwrap();
 }
 
 fn display_instructions(stream: TcpStream) {
@@ -84,21 +77,20 @@ fn choose_chatroom(stream: TcpStream, server: &Arc<Mutex<Server>>, username: Str
                     let mut room_name = "".to_string();
                     if let Ok(_) = reader.read_line(&mut room_name) {
                         let mut server = server.lock().unwrap();
-                        let room_num = server.create_room(room_name.to_string());
+                        let room_num = server.create_room(room_name.trim().to_string());
                         server.join_room(room_num, username.to_string(), sndr);
                         return room_num;
                     }
                 }
                 else if let Ok(room_num) = choice.parse() {
-                    server.lock().unwrap().join_room(room_num, username.to_string(), sndr);
-                    return room_num;
+                    if server.lock().unwrap()
+                            .join_room(room_num, username.to_string(), sndr.clone()) {
+                        return room_num;
+                    }
                 }
-                else {
-                    let msg = "Try again\n".to_string();
-                    choice = "".to_string();
-                    stream.write(&msg.into_bytes()).expect("Error writing to stream");
-                }
-
+                let msg = "Try again\n".to_string();
+                choice = "".to_string();
+                stream.write(&msg.into_bytes()).expect("Error writing to stream");
             },
             Err(e) => println!("{}", e)
         }
