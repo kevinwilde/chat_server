@@ -6,6 +6,8 @@ use message::Message;
 use roommap::{Room, RoomMap};
 use usermap::UserMap;
 
+extern crate time;
+
 pub struct Server {
     users: UserMap,
     rooms: RoomMap,
@@ -33,7 +35,7 @@ impl Server {
     /// Send message to all users in the room that the sender is in
     pub fn send_message(&self, msg: Message) {
         let members = self.rooms.get(&msg.room_id()).unwrap().members();
-        let output = msg.from().to_string() + ": " + msg.content();
+        let output = msg.from().to_string() + ": " + msg.content() + "\n";
         for (name, sndr) in members {
             if name != msg.from() {
                 sndr.send(output.to_string()).unwrap();
@@ -43,7 +45,12 @@ impl Server {
 
     /// Add a user to a chatroom
     pub fn join_room(&mut self, room_id: usize, user: String, sndr: Sender<String>) {
-        self.rooms.get_mut(&room_id).unwrap().add_member(user, sndr);
+        self.rooms.get_mut(&room_id).unwrap().add_member(user.to_string(), sndr);
+        let msg = Message::new(time::now().asctime().to_string(),
+                               "Server".to_string(),
+                               room_id,
+                               user.to_string() + " has joined.\n");
+        self.send_message(msg);
     }
 
     /// Create a new chatroom

@@ -15,7 +15,7 @@ extern crate time;
 pub fn create_client(stream: TcpStream, server: &Arc<Mutex<Server>>) {
     println!("New client");    
     welcome_user(clone_stream(&stream));
-    let username = choose_username(clone_stream(&stream), server);   
+    let username = choose_username(clone_stream(&stream), server);
     display_instructions(clone_stream(&stream));
     chat(stream, server, username);
 }
@@ -63,13 +63,13 @@ fn choose_chatroom(stream: TcpStream, server: &Arc<Mutex<Server>>, username: Str
     // Display rooms and give option to create new room
     let mut stream = stream;
     let msg = "Available rooms:\n".to_string();
-    stream.write(&msg.into_bytes()).expect("Error writing to stream");                    
-    
+    stream.write(&msg.into_bytes()).expect("Error writing to stream");
+
     server.lock().unwrap().display_rooms(clone_stream(&stream));
-    
+
     let msg = "\nEnter the room number of the room you wish to join, or type \"new\".\n".to_string();
     stream.write(&msg.into_bytes()).expect("Error writing to stream");
-    
+
     // If create new room, call server.create_room
     let mut reader = BufReader::new(clone_stream(&stream));
     let mut choice = "".to_string();
@@ -109,7 +109,7 @@ fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
     let (sndr, rcvr) = channel();
 
     let room_num = choose_chatroom(clone_stream(&stream), server, username.to_string(), sndr);
-    
+
     // Send messages
     {
         let username = username.to_string();
@@ -120,9 +120,9 @@ fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
                 if line.len() > 0 {
-                    let msg = Message::new(time::now().asctime().to_string(), 
-                                           username.to_string(), 
-                                           room_num, 
+                    let msg = Message::new(time::now().asctime().to_string(),
+                                           username.to_string(),
+                                           room_num,
                                            line.to_string());
                     server.lock().unwrap().send_message(msg);
                 }
@@ -133,10 +133,11 @@ fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
     // Receive Messages
     {
         thread::spawn(move|| {
+            let mut stream = stream;
             loop {
                 match rcvr.recv() {
                     Ok(msg) => {
-                        receive_message(clone_stream(&stream), msg);
+                        stream.write(&msg.into_bytes()).expect("Error writing to stream");
                     },
 
                     Err(e) => {
@@ -147,12 +148,6 @@ fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
             }
         });
     }
-}
-
-fn receive_message(stream: TcpStream, msg: String) {
-    let mut stream = stream;
-    let msg = msg + "\n";
-    stream.write(&msg.into_bytes()).expect("Error writing to stream");
 }
 
 fn clone_stream(stream: &TcpStream) -> TcpStream {
