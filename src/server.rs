@@ -53,20 +53,15 @@ impl Server {
     /// Fails if room_id is invalid
     /// Return boolean indicating success/failure
     pub fn join_room(&mut self, room_id: usize, user: String, sndr: Sender<String>) -> bool {
-        let mut valid = false;
-        if let Some(room) = self.rooms.get_mut(&room_id) {
-            room.add_member(user.to_string(), sndr);
-            valid = true;
+        if !self.rooms.contains_key(&room_id) {
+            return false;
         }
-        if valid {
-            let room_name  = &self.rooms.get(&room_id).unwrap().name();
-            let join_msg = user.to_string() + " has joined " + room_name;
-            let msg = Message::new("Server".to_string(),
-                                   room_id,
-                                   join_msg);
-            self.send_message(msg);
-        }
-        valid
+        self.rooms.get_mut(&room_id).unwrap().add_member(user.to_string(), sndr);
+        let room_name  = &self.rooms.get(&room_id).unwrap().name();
+        let join_msg = user.to_string() + " has joined " + room_name;
+        let msg = Message::new("Server".to_string(), room_id, join_msg);
+        self.send_message(msg);
+        true
     }
 
     /// Create a new chatroom
