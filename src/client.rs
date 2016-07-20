@@ -10,8 +10,6 @@ use server::Server;
 
 // use command::parse_command;
 
-extern crate time;
-
 pub fn create_client(stream: TcpStream, server: &Arc<Mutex<Server>>) {
     println!("New client");    
     Server::welcome_user(clone_stream(&stream));
@@ -112,8 +110,7 @@ fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
             let mut lines = reader.lines(); 
             while let Some(Ok(line)) = lines.next() {
                 if line.len() > 0 {
-                    let msg = Message::new(time::now().asctime().to_string(),
-                                           username.to_string(),
+                    let msg = Message::new(username.to_string(),
                                            room_num,
                                            line.to_string());
                     server.lock().unwrap().send_message(msg);

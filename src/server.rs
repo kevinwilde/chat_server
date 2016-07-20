@@ -6,8 +6,6 @@ use message::Message;
 use roommap::{Room, RoomMap};
 use usermap::UserMap;
 
-extern crate time;
-
 pub struct Server {
     users: UserMap,
     rooms: RoomMap,
@@ -62,9 +60,8 @@ impl Server {
         }
         if valid {
             let room_name  = &self.rooms.get(&room_id).unwrap().name();
-            let join_msg = user.to_string() + " has joined " + room_name + ".\n";
-            let msg = Message::new(time::now().asctime().to_string(),
-                                   "Server".to_string(),
+            let join_msg = user.to_string() + " has joined " + room_name;
+            let msg = Message::new("Server".to_string(),
                                    room_id,
                                    join_msg);
             self.send_message(msg);
