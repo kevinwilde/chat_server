@@ -21,7 +21,7 @@ impl Server {
 
     pub fn welcome_user(stream: TcpStream) {
         let mut stream = stream;
-        let welcome_msg = "Welcome to Smazy\nPlease enter a username:\n".to_string();
+        let welcome_msg = "Please enter a username:\n".to_string();
         stream.write(&welcome_msg.into_bytes()).expect("Error writing to stream");
     }
 

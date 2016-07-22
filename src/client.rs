@@ -58,7 +58,8 @@ fn choose_chatroom(stream: TcpStream, server: &Arc<Mutex<Server>>, username: Str
 
     server.lock().unwrap().display_rooms(clone_stream(&stream));
 
-    let msg = "\nEnter the room number of the room you wish to join, or type \"new\".\n".to_string();
+    let msg = "\nEnter the room number of the room you wish to join, \
+                or type \"new\".\n".to_string();
     stream.write(&msg.into_bytes()).expect("Error writing to stream");
 
     // If create new room, call server.create_room
@@ -98,7 +99,8 @@ fn choose_chatroom(stream: TcpStream, server: &Arc<Mutex<Server>>, username: Str
 fn chat(stream: TcpStream, server: &Arc<Mutex<Server>>, username: String) {
     let (sndr, rcvr) = channel();
 
-    let room_num = choose_chatroom(clone_stream(&stream), server, username.to_string(), sndr);
+    let room_num = choose_chatroom(clone_stream(&stream), server,
+                                    username.to_string(), sndr);
 
     // Send messages
     {
