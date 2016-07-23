@@ -14,15 +14,8 @@ pub fn create_client(stream: TcpStream, server: &Arc<Mutex<Server>>) {
     println!("New client");    
     Server::welcome_user(clone_stream(&stream));
     let username = choose_username(clone_stream(&stream), server);
-    display_instructions(clone_stream(&stream));
+    Server::display_instructions(clone_stream(&stream));
     chat(stream, server, username);
-}
-
-fn display_instructions(stream: TcpStream) {
-    let mut stream = stream;
-    let instructions = "Instructions:\nThis will be filled in later\n".to_string();
-    stream.write(&instructions.into_bytes()).expect("Error writing to stream");
-    stream.flush().unwrap();
 }
 
 fn choose_username(stream: TcpStream, server: &Arc<Mutex<Server>>) -> String {

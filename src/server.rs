@@ -25,6 +25,12 @@ impl Server {
         stream.write(&welcome_msg.into_bytes()).expect("Error writing to stream");
     }
 
+    pub fn display_instructions(stream: TcpStream) {
+        let mut stream = stream;
+        let instructions = "Instructions: This will be filled in later\n".to_string();
+        stream.write(&instructions.into_bytes()).expect("Error writing to stream");
+    }
+
     /// Add user to server
     /// Fails if a user with the same name already exists
     /// Return boolean indicating success/failure
