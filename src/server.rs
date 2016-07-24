@@ -55,6 +55,14 @@ impl Server {
         }
     }
 
+    /// Create a new chatroom
+    /// Return room_id
+    pub fn create_room(&mut self, room_name: String) -> usize {
+        let room_id = self.rooms.len() + 1;
+        self.rooms.insert(room_id, Room::new(room_name));
+        room_id
+    }
+
     /// Add a user to a chatroom
     /// Fails if room_id is invalid
     /// Return boolean indicating success/failure
@@ -64,25 +72,22 @@ impl Server {
         }
         self.rooms.get_mut(&room_id).unwrap().add_member(user.to_string(), sndr);
         let room_name  = &self.rooms.get(&room_id).unwrap().name();
-        let join_msg = user.to_string() + " has joined " + room_name;
+        let join_msg = user + " has joined " + room_name;
         let msg = Message::new("Server".to_string(), room_id, join_msg);
         self.send_message(msg);
         true
     }
 
-    /// Create a new chatroom
-    /// Return room_id
-    pub fn create_room(&mut self, room_name: String) -> usize {
-        let room_id = self.rooms.len() + 1;
-        self.rooms.insert(room_id, Room::new(room_name));
-        room_id
-    }
-
     /// Remove a user from a chatroom
     pub fn leave_room(&mut self, room_id: usize, user: String) {
-        if let Some(room) = self.rooms.get_mut(&room_id) {
-            room.remove_member(user);
+        if !self.rooms.contains_key(&room_id) {
+            return;
         }
+        self.rooms.get_mut(&room_id).unwrap().remove_member(user.to_string());
+        let room_name  = &self.rooms.get(&room_id).unwrap().name();
+        let leave_msg = user + " has left " + room_name;
+        let msg = Message::new("Server".to_string(), room_id, leave_msg);
+        self.send_message(msg);
     }
 
     /// Write a list of the available chatrooms to a stream
