@@ -5,6 +5,7 @@ use std::thread;
 use server::Server;
 
 mod client;
+mod command;
 mod message;
 mod roommap;
 mod server;

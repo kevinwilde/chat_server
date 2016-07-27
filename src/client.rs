@@ -4,11 +4,11 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
-// use command::Command;
+use command::Command;
 use message::Message;
 use server::Server;
 
-// use command::parse_command;
+use command::parse_command;
 
 pub fn run(stream: TcpStream, server: &Arc<Mutex<Server>>) {
     println!("New client");    
@@ -122,10 +122,16 @@ impl Client {
                 let mut lines = reader.lines(); 
                 while let Some(Ok(line)) = lines.next() {
                     if line.len() > 0 {
-                        let msg = Message::new(username.to_string(),
-                                               room_num,
-                                               line.to_string());
-                        server.lock().unwrap().send_message(msg);
+                        if &line[0..1] == "/" {
+                            handle_command(username.to_string(), room_num, line,
+                                           &server);
+                        }
+                        else {
+                            let msg = Message::new(username.to_string(),
+                                                   room_num,
+                                                   line.to_string());
+                            server.lock().unwrap().send_message(msg);
+                        }
                     }
                 }
             });
@@ -151,7 +157,18 @@ impl Client {
             });
         }
     }
+}
 
+fn handle_command(username: String, room_id: usize, command: String,
+                  server: &Arc<Mutex<Server>>) {
+    match parse_command(command) {
+        Command::Quit => {
+            let mut server = server.lock().unwrap();
+            server.leave_room(room_id, username);
+        },
+        Command::Logoff => unimplemented!(),
+        _ => unimplemented!(),
+    }
 }
 
 fn clone_stream(stream: &TcpStream) -> TcpStream {
