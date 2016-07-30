@@ -22,18 +22,20 @@ pub fn run(stream: TcpStream, server: &Arc<Mutex<Server>>) {
 struct Client {
     username: String,
     stream: TcpStream,
-    sndr: Sender<String>,
-    rcvr: Receiver<String>,
 }
 
 impl Client {
     fn new(stream: TcpStream) -> Self {
-        let (sndr, rcvr) = channel();
         Client {
             username: "".to_string(),
             stream: stream,
-            sndr: sndr,
-            rcvr: rcvr,
+        }
+    }
+
+    fn clone(&self) -> Self {
+        Client {
+            username: self.username.to_string(),
+            stream: clone_stream(&self.stream),
         }
     }
 
@@ -62,7 +64,7 @@ impl Client {
         }
     }
 
-    fn choose_chatroom(&self, server: &Arc<Mutex<Server>>) -> usize {
+    fn choose_chatroom(&self, server: &Arc<Mutex<Server>>, sndr: Sender<String>) -> usize {
         let mut stream = clone_stream(&self.stream);
         let msg = "Available rooms:\n".to_string();
         stream.write(&msg.into_bytes()).expect("Error writing to stream");
@@ -88,14 +90,14 @@ impl Client {
                             let mut server = server.lock().unwrap();
                             let room_num = server.create_room(room_name.trim().to_string());
                             server.join_room(room_num, self.username.to_string(),
-                                             self.sndr.clone());
+                                             sndr.clone());
                             return room_num;
                         }
                     }
                     else if let Ok(room_num) = choice.parse() {
                         if server.lock().unwrap()
                                 .join_room(room_num, self.username.to_string(),
-                                           self.sndr.clone()) {
+                                           sndr.clone()) {
                             return room_num;
                         }
                     }
@@ -109,22 +111,27 @@ impl Client {
     }
 
     fn chat(self, server: &Arc<Mutex<Server>>) {
+        let (sndr, rcvr) = channel();
+        let stream = clone_stream(&self.stream);
+        thread::spawn(move|| {
+            receive_messages(stream, rcvr);
+        });
+        &self.send_messages(server, sndr);
+    }
 
-        let room_num = self.choose_chatroom(server);
-
-        // Send messages
-        {
+    fn send_messages(&self, server: &Arc<Mutex<Server>>, sndr: Sender<String>) {
+        loop {
+            let _self = self.clone();
+            let room_num = self.choose_chatroom(server, sndr.clone());
             let username = self.username.to_string();
             let reader = BufReader::new(clone_stream(&self.stream));
             let server = server.clone();
-
-            thread::spawn(move|| {
+            let handle = thread::spawn(move|| {
                 let mut lines = reader.lines(); 
                 while let Some(Ok(line)) = lines.next() {
                     if line.len() > 0 {
                         if &line[0..1] == "/" {
-                            handle_command(username.to_string(), room_num, line,
-                                           &server);
+                            _self.handle_command(room_num, line, &server);
                         }
                         else {
                             let msg = Message::new(username.to_string(),
@@ -135,39 +142,37 @@ impl Client {
                     }
                 }
             });
+            let _ = handle.join();
         }
+    }
 
-        // Receive Messages
-        {
-            thread::spawn(move|| {
-                let mut stream = clone_stream(&self.stream);
-                loop {
-                    match self.rcvr.recv() {
-                        Ok(msg) => {
-                            stream.write(&msg.into_bytes())
-                                  .expect("Error writing to stream");
-                        },
-
-                        Err(e) => {
-                            println!("Error receiving message {}", e);
-                            break;
-                        }
-                    }
-                }
-            });
+    fn handle_command(&self, room_id: usize, command: String, server: &Arc<Mutex<Server>>) {
+        match parse_command(command) {
+            Command::Quit => {
+                let mut server = server.lock().unwrap();
+                server.leave_room(room_id, self.username.to_string());
+            },
+            Command::Logoff => {
+                let _ = self.stream.shutdown(Shutdown::Both);
+            },
+            _ => unimplemented!(),
         }
     }
 }
 
-fn handle_command(username: String, room_id: usize, command: String,
-                  server: &Arc<Mutex<Server>>) {
-    match parse_command(command) {
-        Command::Quit => {
-            let mut server = server.lock().unwrap();
-            server.leave_room(room_id, username);
-        },
-        Command::Logoff => unimplemented!(),
-        _ => unimplemented!(),
+fn receive_messages(stream: TcpStream, rcvr: Receiver<String>) {
+    let mut stream = stream;
+    loop {
+        match rcvr.recv() {
+            Ok(msg) => {
+                stream.write(&msg.into_bytes())
+                      .expect("Error writing to stream");
+            },
+            Err(e) => {
+                println!("Error receiving message {}", e);
+                break;
+            }
+        }
     }
 }
 
