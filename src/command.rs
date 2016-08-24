@@ -1,8 +1,8 @@
 #[derive(Debug)]
 pub enum Command {
     Quit,
-    DisplayAvailable,
-    Block,
+    DisplayRooms,
+    Help,
     Logoff,
     Unrecognized
 }
@@ -11,8 +11,8 @@ impl PartialEq for Command {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (&Command::Quit, &Command::Quit) => true,
-            (&Command::DisplayAvailable, &Command::DisplayAvailable) => true,
-            (&Command::Block, &Command::Block) => true,
+            (&Command::DisplayRooms, &Command::DisplayRooms) => true,
+            (&Command::Help, &Command::Help) => true,
             (&Command::Logoff, &Command::Logoff) => true,
             (&Command::Unrecognized, &Command::Unrecognized) => true,
             _ => false
@@ -25,9 +25,9 @@ pub fn parse_command(cmd: String) -> Command {
     if cmd == "/q" || cmd == "/quit" {
         Command::Quit
     } else if cmd == "/list" {
-        Command::DisplayAvailable
-    } else if cmd == "/block" {
-        Command::Block
+        Command::DisplayRooms
+    } else if cmd == "/help" {
+        Command::Help
     } else if cmd == "/logoff" {
         Command::Logoff
     } else {
@@ -55,13 +55,13 @@ mod command_tests {
     #[test]
     fn parse_command_test_list() {
         let cmd = "/list".to_string();
-        assert_eq!(Command::DisplayAvailable, parse_command(cmd));
+        assert_eq!(Command::DisplayRooms, parse_command(cmd));
     }
 
     #[test]
-    fn parse_command_test_block() {
-        let cmd = "/block".to_string();
-        assert_eq!(Command::Block, parse_command(cmd));
+    fn parse_command_test_help() {
+        let cmd = "/help".to_string();
+        assert_eq!(Command::Help, parse_command(cmd));
     }
 
     #[test]
@@ -84,7 +84,7 @@ mod command_tests {
         assert_eq!(Command::Unrecognized, parse_command(cmd));
         let cmd = "list".to_string();
         assert_eq!(Command::Unrecognized, parse_command(cmd));
-        let cmd = "block".to_string();
+        let cmd = "help".to_string();
         assert_eq!(Command::Unrecognized, parse_command(cmd));
         let cmd = "logoff".to_string();
         assert_eq!(Command::Unrecognized, parse_command(cmd));

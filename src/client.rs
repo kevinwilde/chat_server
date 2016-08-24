@@ -161,11 +161,21 @@ impl Client {
                 let mut server = server.lock().unwrap();
                 server.leave_room(room_id, self.username.to_string());
             },
+            Command::DisplayRooms => {
+                let server = server.lock().unwrap();
+                server.display_rooms(clone_stream(&self.stream));
+            },
+            Command::Help => {
+                Server::display_instructions(clone_stream(&self.stream));
+            },
             Command::Logoff => {
+                self.chatting = false;
                 self.logged_on = false;
+                let mut server = server.lock().unwrap();
+                server.leave_room(room_id, self.username.to_string());
                 let _ = self.stream.shutdown(Shutdown::Both);
             },
-            _ => unimplemented!(),
+            Command::Unrecognized => {},
         }
     }
 }
